@@ -24,6 +24,10 @@ supabase/.env
 
 # Test / coverage output
 coverage/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
 
 # Logs
 *.log

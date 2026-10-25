@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
+import { ALL_LOCALITIES } from '../src/data/localities.js';
 import { submitLocality, SUBMISSIONS_TABLE } from '../src/lib/submit-locality.js';
 import { resolveSupabaseConfig } from '../src/lib/config.js';
 
@@ -30,6 +31,7 @@ describe('submitLocality', () => {
   it('rejects invalid localities without touching the network', async () => {
     const impl = vi.fn();
     const { client } = fakeClient(impl);
+    expect(await submitLocality({ client, locality: '' })).toEqual({ ok: false, reason: 'invalid' });
     expect(await submitLocality({ client, locality: 'Pune' })).toEqual({ ok: false, reason: 'invalid' });
     expect(await submitLocality({ client, locality: 'andheri east' })).toEqual({ ok: false, reason: 'invalid' });
     expect(impl).not.toHaveBeenCalled();
@@ -44,6 +46,14 @@ describe('submitLocality', () => {
     expect(await submitLocality({ client, locality: 'Powai' })).toEqual({ ok: true });
     expect(calls.table).toBe(SUBMISSIONS_TABLE);
     expect(calls.payload).toEqual({ locality: 'Powai' });
+  });
+
+  it('accepts all 57 curated localities when the database confirms insert', async () => {
+    const { client } = fakeClient(async () => ({ error: null, data: null, status: 201 }));
+    expect(ALL_LOCALITIES).toHaveLength(57);
+    for (const locality of ALL_LOCALITIES) {
+      expect(await submitLocality({ client, locality })).toEqual({ ok: true });
+    }
   });
 
   it('maps a database error to a generic failure', async () => {
@@ -85,6 +95,12 @@ describe('resolveSupabaseConfig', () => {
     expect(
       resolveSupabaseConfig({ VITE_SUPABASE_URL: URL_OK, VITE_SUPABASE_ANON_KEY: 'your-anon-or-publishable-key' }).problem,
     ).toBe('missing');
+    expect(
+      resolveSupabaseConfig({
+        VITE_SUPABASE_URL: URL_OK,
+        VITE_SUPABASE_ANON_KEY: 'YOUR_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY',
+      }).problem,
+    ).toBe('missing');
   });
 
   it('rejects non-https URLs', () => {
@@ -117,9 +133,10 @@ describe('migration safety', () => {
     .replace(/--.*$/gm, '')
     .toLowerCase();
 
-  it('enables RLS and grants anon only column-level insert', () => {
+  it('enables and forces RLS and grants anon only column-level insert', () => {
     expect(sql).toMatch(/alter table public\.location_test_submissions enable row level security/);
-    expect(sql).toMatch(/revoke all on table public\.location_test_submissions from anon, authenticated/);
+    expect(sql).toMatch(/alter table public\.location_test_submissions force row level security/);
+    expect(sql).toMatch(/revoke all on table public\.location_test_submissions from public, anon, authenticated/);
     expect(sql).toMatch(/grant insert \(locality\) on table public\.location_test_submissions to anon/);
   });
 

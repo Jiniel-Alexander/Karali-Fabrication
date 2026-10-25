@@ -59,7 +59,7 @@ grant execute on function private.is_allowed_locality(text) to anon, authenticat
 -- ---------------------------------------------------------------------------
 -- Table
 -- ---------------------------------------------------------------------------
-create table public.location_test_submissions (
+create table if not exists public.location_test_submissions (
   id         uuid        primary key default gen_random_uuid(),
   locality   text        not null
              constraint location_test_submissions_locality_allowed
@@ -71,17 +71,18 @@ comment on table public.location_test_submissions
   is 'Coming Soon page test: visitor-selected locality only. No personal data.';
 
 -- ---------------------------------------------------------------------------
--- Row Level Security
+-- Row Level Security & Grants
 -- ---------------------------------------------------------------------------
 alter table public.location_test_submissions enable row level security;
+alter table public.location_test_submissions force row level security;
 
--- Supabase grants ALL on new public tables to anon/authenticated by default.
--- Remove that, then grant back only what the browser needs.
-revoke all on table public.location_test_submissions from anon, authenticated;
-
--- Column-level grant: anon may supply `locality` and nothing else.
+-- Revoke default grants from PUBLIC, anon, and authenticated, then grant back
+-- ONLY column-level INSERT (locality) to anon.
+revoke all on table public.location_test_submissions from public, anon, authenticated;
+grant usage on schema public to anon;
 grant insert (locality) on table public.location_test_submissions to anon;
 
+drop policy if exists "anon can insert allowed localities" on public.location_test_submissions;
 create policy "anon can insert allowed localities"
   on public.location_test_submissions
   for insert

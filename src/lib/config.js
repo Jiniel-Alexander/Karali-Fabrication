@@ -9,7 +9,11 @@
  * refused so it can never be used from the browser even if misconfigured.
  */
 
-const PLACEHOLDER_PREFIX = 'your-';
+const PLACEHOLDER_PATTERN = /^(your[-_]|<your|replace[-_]|placeholder)/i;
+
+function isPlaceholder(value) {
+  return PLACEHOLDER_PATTERN.test(value);
+}
 
 function decodeJwtPayload(token) {
   const parts = token.split('.');
@@ -45,7 +49,7 @@ export function resolveSupabaseConfig(env) {
   const url = (env?.VITE_SUPABASE_URL ?? '').trim();
   const anonKey = (env?.VITE_SUPABASE_ANON_KEY ?? '').trim();
 
-  if (!url || !anonKey || anonKey.startsWith(PLACEHOLDER_PREFIX)) {
+  if (!url || !anonKey || isPlaceholder(anonKey)) {
     return { configured: false, url: '', anonKey: '', problem: 'missing' };
   }
   if (!isValidHttpsUrl(url)) {

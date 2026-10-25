@@ -61,6 +61,7 @@ let submitting = false;
 
 function setSubmitting(value) {
   submitting = value;
+  combobox.setDisabled(value);
   submitBtn.disabled = value;
   submitBtn.setAttribute('aria-busy', String(value));
   submitLabel.textContent = value ? 'Submitting…' : 'Submit locality';
