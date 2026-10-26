@@ -63,7 +63,7 @@ describe('Cloudflare Pages Quote Endpoint (`functions/api/quote.js`)', () => {
     const methods = ['GET', 'PUT', 'DELETE', 'PATCH'];
     for (const method of methods) {
       const request = createMockRequest({ method });
-      const res = await onRequest({ request, env: {} });
+      const res = await onRequest({ request, env: { DEV: 'true' } });
       expect(res.status).toBe(405);
       expect(res.headers.get('Allow')).toBe('POST');
       const json = await res.json();
@@ -80,7 +80,7 @@ describe('Cloudflare Pages Quote Endpoint (`functions/api/quote.js`)', () => {
         headers: { 'Content-Type': contentType },
         body: JSON.stringify(VALID_PAYLOAD),
       });
-      const res = await handleQuotePost({ request, env: {} });
+      const res = await handleQuotePost({ request, env: { DEV: 'true' } });
       expect(res.status).toBe(415);
       const json = await res.json();
       expect(json.error).toMatch(/Unsupported Media Type/i);
@@ -93,31 +93,38 @@ describe('Cloudflare Pages Quote Endpoint (`functions/api/quote.js`)', () => {
       headers: { Origin: 'https://malicious-scam-site.com' },
       body: JSON.stringify(VALID_PAYLOAD),
     });
-    const res = await handleQuotePost({ request, env: {} });
+    const res = await handleQuotePost({ request, env: { DEV: 'true' } });
     expect(res.status).toBe(403);
     const json = await res.json();
     expect(json.error).toMatch(/unauthorized origin/i);
   });
 
-  it('allows requests from approved production and local origins', async () => {
-    const allowed = [
-      'https://karalifabrication.in',
-      'https://www.karalifabrication.in',
-      'http://localhost:4173',
-      'http://127.0.0.1:4173',
-    ];
-    for (const origin of allowed) {
-      const request = createMockRequest({
-        method: 'POST',
-        headers: { Origin: origin },
-        body: JSON.stringify(VALID_PAYLOAD),
-      });
-      const res = await handleQuotePost({ request, env: {} });
-      expect(res.status).toBe(200);
-      const json = await res.json();
-      expect(json.ok).toBe(true);
-    }
-  });
+    it('allows requests from approved production and local origins', async () => {
+      const allowed = [
+        'https://karalifabrication.in',
+        'https://www.karalifabrication.in',
+        'http://localhost:4173',
+        'http://127.0.0.1:4173',
+      ];
+      for (const origin of allowed) {
+        const isProd = origin.startsWith('https://');
+        const env = isProd
+          ? { PRODUCTION: 'true', TURNSTILE_SECRET_KEY: 'mock-secret', SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'anon-key' }
+          : { DEV: 'true' };
+        const payload = isProd
+          ? { ...VALID_PAYLOAD, turnstile_token: 'valid-token' }
+          : VALID_PAYLOAD;
+        const request = createMockRequest({
+          method: 'POST',
+          headers: { Origin: origin },
+          body: JSON.stringify(payload),
+        });
+        const res = await handleQuotePost({ request, env });
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.ok).toBe(true);
+      }
+    });
 
   it('rejects oversized requests with 413 based on Content-Length header', async () => {
     const request = createMockRequest({
@@ -125,7 +132,7 @@ describe('Cloudflare Pages Quote Endpoint (`functions/api/quote.js`)', () => {
       headers: { 'Content-Length': '70000' }, // > 64 KB
       body: JSON.stringify(VALID_PAYLOAD),
     });
-    const res = await handleQuotePost({ request, env: {} });
+    const res = await handleQuotePost({ request, env: { DEV: 'true' } });
     expect(res.status).toBe(413);
     const json = await res.json();
     expect(json.error).toMatch(/Payload Too Large/i);
@@ -155,7 +162,7 @@ describe('Cloudflare Pages Quote Endpoint (`functions/api/quote.js`)', () => {
       },
     };
 
-    const res = await handleQuotePost({ request, env: {} });
+    const res = await handleQuotePost({ request, env: { DEV: 'true' } });
     expect(res.status).toBe(413);
     expect(readerCancelled).toBe(true);
   });
@@ -165,7 +172,7 @@ describe('Cloudflare Pages Quote Endpoint (`functions/api/quote.js`)', () => {
       method: 'POST',
       body: '{ "full_name": "Broken JSON, missing brace',
     });
-    const res = await handleQuotePost({ request, env: {} });
+    const res = await handleQuotePost({ request, env: { DEV: 'true' } });
     expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error).toMatch(/Malformed JSON/i);
@@ -177,7 +184,7 @@ describe('Cloudflare Pages Quote Endpoint (`functions/api/quote.js`)', () => {
       method: 'POST',
       body: JSON.stringify(spamPayload),
     });
-    const res = await handleQuotePost({ request, env: {} });
+    const res = await handleQuotePost({ request, env: { DEV: 'true' } });
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.ok).toBe(true);
@@ -200,7 +207,7 @@ describe('Cloudflare Pages Quote Endpoint (`functions/api/quote.js`)', () => {
         method: 'POST',
         body: JSON.stringify({ ...VALID_PAYLOAD, ...change }),
       });
-      const res = await handleQuotePost({ request, env: {} });
+      const res = await handleQuotePost({ request, env: { DEV: 'true' } });
       expect(res.status).toBe(400);
       const json = await res.json();
       expect(json.error).toMatch(err);
@@ -212,7 +219,7 @@ describe('Cloudflare Pages Quote Endpoint (`functions/api/quote.js`)', () => {
       method: 'POST',
       body: JSON.stringify({ ...VALID_PAYLOAD, phone: '+919876543210' }),
     });
-    const res = await handleQuotePost({ request, env: {} });
+    const res = await handleQuotePost({ request, env: { DEV: 'true' } });
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.ok).toBe(true);

@@ -38,6 +38,44 @@ export function initQuoteForm(formEl) {
   const honeypotInput = formEl.querySelector('#quote-website');
   const consentCheckbox = formEl.querySelector('#quote-consent');
 
+  // Turnstile integration (client‑side)
+  const turnstileSiteKey = import.meta.env?.VITE_TURNSTILE_SITE_KEY;
+  let turnstileToken = null;
+  if (turnstileSiteKey) {
+    // Insert container for the widget if not present
+    let turnstileDiv = formEl.querySelector('#turnstile-widget');
+    if (!turnstileDiv) {
+      turnstileDiv = document.createElement('div');
+      turnstileDiv.id = 'turnstile-widget';
+      // Place it before the submit button
+      submitBtn?.parentNode?.insertBefore(turnstileDiv, submitBtn);
+    }
+    // Load Cloudflare Turnstile script (once)
+    if (!window.__turnstileScriptLoaded) {
+      const script = document.createElement('script');
+      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+      script.async = true;
+      script.onload = () => {
+        window.__turnstileScriptLoaded = true;
+        window.turnstile.render('#turnstile-widget', {
+          sitekey: turnstileSiteKey,
+          callback: (token) => { turnstileToken = token; },
+          'error-callback': () => { turnstileToken = null; },
+          'expired-callback': () => { turnstileToken = null; },
+        });
+      };
+      document.head.appendChild(script);
+    } else if (window.turnstile) {
+      window.turnstile.render('#turnstile-widget', {
+        sitekey: turnstileSiteKey,
+        callback: (token) => { turnstileToken = token; },
+        'error-callback': () => { turnstileToken = null; },
+        'expired-callback': () => { turnstileToken = null; },
+      });
+    }
+  }
+
+
   let combobox = null;
   if (comboRoot) {
     combobox = createCombobox(comboRoot, {
@@ -276,6 +314,8 @@ export function initQuoteForm(formEl) {
       project_details: details,
       drawings_status: drawingsStatus,
       consent: Boolean(consentCheckbox?.checked),
+      // Include Cloudflare Turnstile token for server verification
+      turnstile_token: turnstileToken,
     };
 
     setSubmitting(true);
