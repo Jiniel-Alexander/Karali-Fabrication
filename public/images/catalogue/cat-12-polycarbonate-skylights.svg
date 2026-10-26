@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" height="400" role="img" aria-label="Technical schematic illustration for Multiwall Polycarbonate Daylighting Skylight Panels">
+  <defs>
+    <linearGradient id="cat12-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#07122b"/>
+      <stop offset="55%" stop-color="#102454"/>
+      <stop offset="100%" stop-color="#1d3b82"/>
+    </linearGradient>
+    <linearGradient id="cat12-steel" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#cbd5e1"/>
+      <stop offset="50%" stop-color="#94a3b8"/>
+      <stop offset="100%" stop-color="#475569"/>
+    </linearGradient>
+    <linearGradient id="cat12-steel-dark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="cat12-orange" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f5a623"/>
+      <stop offset="100%" stop-color="#ffcf70"/>
+    </linearGradient>
+    <radialGradient id="cat12-glow" cx="68%" cy="40%" r="48%">
+      <stop offset="0%" stop-color="#f5a623" stop-opacity="0.38"/>
+      <stop offset="50%" stop-color="#f5a623" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#07122b" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="cat12-grid" width="36" height="36" patternUnits="userSpaceOnUse">
+      <path d="M 36 0 L 0 0 0 36" fill="none" stroke="#4267b2" stroke-width="0.7" stroke-opacity="0.28"/>
+    </pattern>
+  </defs>
+  <rect width="640" height="400" fill="url(#cat12-bg)"/>
+  <rect width="640" height="400" fill="url(#cat12-grid)"/>
+  <rect width="640" height="400" fill="url(#cat12-glow)"/>
+
+  <rect x="20" y="18" width="600" height="32" rx="5" fill="#071128" fill-opacity="0.82" stroke="#335599" stroke-width="1"/>
+  <circle cx="38" cy="34" r="4.5" fill="#f5a623"/>
+  <text x="52" y="38" fill="#e2e8f0" font-family="monospace" font-size="11" font-weight="bold" letter-spacing="1.2">SCHEMATIC ILLUSTRATION · ROOFING &amp; CLADDING</text>
+  <text x="606" y="38" fill="#f5a623" font-family="monospace" font-size="11" text-anchor="end">KF-CAT-12</text>
+
+  
+      <g>
+        <rect x="120" y="100" width="400" height="210" rx="4" fill="#0284c7" fill-opacity="0.3" stroke="#38bdf8" stroke-width="4"/>
+        <g stroke="#38bdf8" stroke-width="2" stroke-dasharray="8 4">
+          <line x1="170" y1="100" x2="170" y2="310"/><line x1="220" y1="100" x2="220" y2="310"/>
+          <line x1="270" y1="100" x2="270" y2="310"/><line x1="320" y1="100" x2="320" y2="310"/>
+          <line x1="370" y1="100" x2="370" y2="310"/><line x1="420" y1="100" x2="420" y2="310"/>
+          <line x1="470" y1="100" x2="470" y2="310"/>
+        </g>
+        <rect x="110" y="295" width="420" height="18" fill="url(#cat12-orange)"/>
+      </g>
+
+  <line x1="30" y1="342" x2="610" y2="342" stroke="#f5a623" stroke-width="2"/>
+  <rect x="20" y="350" width="600" height="32" rx="5" fill="#071128" fill-opacity="0.84"/>
+  <text x="34" y="370" fill="#cbd5e1" font-family="sans-serif" font-size="11.5" font-weight="bold">Multiwall Polycarbonate Daylighting Skylight Panels</text>
+  <text x="606" y="370" fill="#94a3b8" font-family="monospace" font-size="10" text-anchor="end">BUILD TO DRAWING</text>
+</svg>

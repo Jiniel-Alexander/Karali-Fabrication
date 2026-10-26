@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500" role="img" aria-label="Heavy-Wall Cylindrical Unipole Columns, Girders &amp;amp; Billboard Display Frameworks">
+  <defs>
+    <linearGradient id="svc8-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#07122b"/>
+      <stop offset="55%" stop-color="#102454"/>
+      <stop offset="100%" stop-color="#1d3b82"/>
+    </linearGradient>
+    <linearGradient id="svc8-steel" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#cbd5e1"/>
+      <stop offset="50%" stop-color="#94a3b8"/>
+      <stop offset="100%" stop-color="#475569"/>
+    </linearGradient>
+    <linearGradient id="svc8-steel-dark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="svc8-orange" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f5a623"/>
+      <stop offset="100%" stop-color="#ffcf70"/>
+    </linearGradient>
+    <radialGradient id="svc8-glow" cx="68%" cy="40%" r="48%">
+      <stop offset="0%" stop-color="#f5a623" stop-opacity="0.38"/>
+      <stop offset="50%" stop-color="#f5a623" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#07122b" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="svc8-grid" width="36" height="36" patternUnits="userSpaceOnUse">
+      <path d="M 36 0 L 0 0 0 36" fill="none" stroke="#4267b2" stroke-width="0.7" stroke-opacity="0.28"/>
+    </pattern>
+  </defs>
+  <rect width="800" height="500" fill="url(#svc8-bg)"/>
+  <rect width="800" height="500" fill="url(#svc8-grid)"/>
+  <rect width="800" height="500" fill="url(#svc8-glow)"/>
+
+  <!-- Top Technical Header Bar -->
+  <rect x="28" y="24" width="744" height="38" rx="6" fill="#08132c" fill-opacity="0.78" stroke="#335599" stroke-width="1"/>
+  <circle cx="50" cy="43" r="5" fill="#f5a623"/>
+  <text x="66" y="48" fill="#e2e8f0" font-family="monospace" font-size="13" font-weight="bold" letter-spacing="1.5">08 / HEAVY OUTDOOR STEEL STRUCTURES</text>
+  <text x="752" y="48" fill="#f5a623" font-family="monospace" font-size="12" text-anchor="end" letter-spacing="1">KF-SVC-08 // UNIPOLES &amp;amp; HOARDINGS</text>
+
+  <!-- Main Structural Scene -->
+  
+      <g>
+        <!-- Heavy Cylindrical Central Column -->
+        <rect x="365" y="180" width="70" height="240" fill="url(#svc8-steel-dark)" stroke="url(#svc8-steel)" stroke-width="3"/>
+        <line x1="385" y1="180" x2="385" y2="420" stroke="#cbd5e1" stroke-width="3"/>
+        <line x1="415" y1="180" x2="415" y2="420" stroke="#cbd5e1" stroke-width="3"/>
+        <!-- Base Flange with Heavy Anchor Studs -->
+        <rect x="330" y="405" width="140" height="20" rx="3" fill="#f5a623"/>
+        <circle cx="345" cy="415" r="4" fill="#07122b"/><circle cx="360" cy="415" r="4" fill="#07122b"/>
+        <circle cx="440" cy="415" r="4" fill="#07122b"/><circle cx="455" cy="415" r="4" fill="#07122b"/>
+        <!-- Billboard Outer Frame & T-Junction Support -->
+        <rect x="120" y="90" width="560" height="110" fill="#0b1b3d" stroke="url(#svc8-orange)" stroke-width="5"/>
+        <polygon points="365,180 320,180 365,220" fill="#f5a623"/>
+        <polygon points="435,180 480,180 435,220" fill="#f5a623"/>
+        <!-- Billboard Internal Truss Bracing -->
+        <line x1="120" y1="90" x2="680" y2="200" stroke="#475569" stroke-width="3"/>
+        <line x1="120" y1="200" x2="680" y2="90" stroke="#475569" stroke-width="3"/>
+        <line x1="300" y1="90" x2="300" y2="200" stroke="#cbd5e1" stroke-width="3"/>
+        <line x1="500" y1="90" x2="500" y2="200" stroke="#cbd5e1" stroke-width="3"/>
+        <!-- Catwalk Maintenance Ladder -->
+        <line x1="445" y1="200" x2="445" y2="400" stroke="#cbd5e1" stroke-width="2"/>
+        <g stroke="#cbd5e1" stroke-width="2">
+          <line x1="440" y1="230" x2="450" y2="230"/>
+          <line x1="440" y1="270" x2="450" y2="270"/>
+          <line x1="440" y1="310" x2="450" y2="310"/>
+          <line x1="440" y1="350" x2="450" y2="350"/>
+        </g>
+      </g>
+
+  <!-- Base Horizon & Caption Bar -->
+  <line x1="40" y1="426" x2="760" y2="426" stroke="#f5a623" stroke-width="2.5"/>
+  <rect x="28" y="438" width="744" height="38" rx="6" fill="#08132c" fill-opacity="0.82"/>
+  <text x="46" y="462" fill="#cbd5e1" font-family="sans-serif" font-size="13" font-weight="bold" letter-spacing="0.8">Heavy-Wall Cylindrical Unipole Columns, Girders &amp;amp; Billboard Display Frameworks</text>
+  <text x="754" y="462" fill="#94a3b8" font-family="monospace" font-size="11" text-anchor="end">PER CLIENT DRAWING / BOQ</text>
+</svg>

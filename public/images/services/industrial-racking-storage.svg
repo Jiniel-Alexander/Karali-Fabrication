@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500" role="img" aria-label="Heavy-Duty Warehouse Pallet Racks, Cantilever Arms &amp;amp; Industrial Workbenches">
+  <defs>
+    <linearGradient id="svc7-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#07122b"/>
+      <stop offset="55%" stop-color="#102454"/>
+      <stop offset="100%" stop-color="#1d3b82"/>
+    </linearGradient>
+    <linearGradient id="svc7-steel" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#cbd5e1"/>
+      <stop offset="50%" stop-color="#94a3b8"/>
+      <stop offset="100%" stop-color="#475569"/>
+    </linearGradient>
+    <linearGradient id="svc7-steel-dark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="svc7-orange" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f5a623"/>
+      <stop offset="100%" stop-color="#ffcf70"/>
+    </linearGradient>
+    <radialGradient id="svc7-glow" cx="68%" cy="40%" r="48%">
+      <stop offset="0%" stop-color="#f5a623" stop-opacity="0.38"/>
+      <stop offset="50%" stop-color="#f5a623" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#07122b" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="svc7-grid" width="36" height="36" patternUnits="userSpaceOnUse">
+      <path d="M 36 0 L 0 0 0 36" fill="none" stroke="#4267b2" stroke-width="0.7" stroke-opacity="0.28"/>
+    </pattern>
+  </defs>
+  <rect width="800" height="500" fill="url(#svc7-bg)"/>
+  <rect width="800" height="500" fill="url(#svc7-grid)"/>
+  <rect width="800" height="500" fill="url(#svc7-glow)"/>
+
+  <!-- Top Technical Header Bar -->
+  <rect x="28" y="24" width="744" height="38" rx="6" fill="#08132c" fill-opacity="0.78" stroke="#335599" stroke-width="1"/>
+  <circle cx="50" cy="43" r="5" fill="#f5a623"/>
+  <text x="66" y="48" fill="#e2e8f0" font-family="monospace" font-size="13" font-weight="bold" letter-spacing="1.5">07 / WAREHOUSE RACKING &amp;amp; STORAGE</text>
+  <text x="752" y="48" fill="#f5a623" font-family="monospace" font-size="12" text-anchor="end" letter-spacing="1">KF-SVC-07 // RACKING &amp;amp; FURNITURE</text>
+
+  <!-- Main Structural Scene -->
+  
+      <g>
+        <!-- Heavy Upright Pallet Racking Columns -->
+        <rect x="120" y="95" width="22" height="325" fill="url(#svc7-steel-dark)" stroke="#94a3b8" stroke-width="1.5"/>
+        <rect x="360" y="95" width="22" height="325" fill="url(#svc7-steel-dark)" stroke="#94a3b8" stroke-width="1.5"/>
+        <rect x="600" y="95" width="22" height="325" fill="url(#svc7-steel-dark)" stroke="#94a3b8" stroke-width="1.5"/>
+        <!-- Upright Slotted Punch Marks -->
+        <g fill="#07122b">
+          <circle cx="131" cy="140" r="3"/><circle cx="131" cy="180" r="3"/><circle cx="131" cy="220" r="3"/><circle cx="131" cy="260" r="3"/><circle cx="131" cy="300" r="3"/><circle cx="131" cy="340" r="3"/>
+          <circle cx="371" cy="140" r="3"/><circle cx="371" cy="180" r="3"/><circle cx="371" cy="220" r="3"/><circle cx="371" cy="260" r="3"/><circle cx="371" cy="300" r="3"/><circle cx="371" cy="340" r="3"/>
+          <circle cx="611" cy="140" r="3"/><circle cx="611" cy="180" r="3"/><circle cx="611" cy="220" r="3"/><circle cx="611" cy="260" r="3"/><circle cx="611" cy="300" r="3"/><circle cx="611" cy="340" r="3"/>
+        </g>
+        <!-- Horizontal Orange Load Beams -->
+        <rect x="142" y="150" width="218" height="24" fill="url(#svc7-orange)" stroke="#0f1f4a" stroke-width="2"/>
+        <rect x="382" y="150" width="218" height="24" fill="url(#svc7-orange)" stroke="#0f1f4a" stroke-width="2"/>
+        <rect x="142" y="240" width="218" height="24" fill="url(#svc7-orange)" stroke="#0f1f4a" stroke-width="2"/>
+        <rect x="382" y="240" width="218" height="24" fill="url(#svc7-orange)" stroke="#0f1f4a" stroke-width="2"/>
+        <rect x="142" y="330" width="218" height="24" fill="url(#svc7-orange)" stroke="#0f1f4a" stroke-width="2"/>
+        <rect x="382" y="330" width="218" height="24" fill="url(#svc7-orange)" stroke="#0f1f4a" stroke-width="2"/>
+        <!-- Diagonal Bracing -->
+        <line x1="142" y1="174" x2="360" y2="240" stroke="#64748b" stroke-width="3"/>
+        <line x1="382" y1="174" x2="600" y2="240" stroke="#64748b" stroke-width="3"/>
+        <!-- Base Anchor Plates -->
+        <rect x="110" y="415" width="42" height="12" fill="#f5a623"/>
+        <rect x="350" y="415" width="42" height="12" fill="#f5a623"/>
+        <rect x="590" y="415" width="42" height="12" fill="#f5a623"/>
+      </g>
+
+  <!-- Base Horizon & Caption Bar -->
+  <line x1="40" y1="426" x2="760" y2="426" stroke="#f5a623" stroke-width="2.5"/>
+  <rect x="28" y="438" width="744" height="38" rx="6" fill="#08132c" fill-opacity="0.82"/>
+  <text x="46" y="462" fill="#cbd5e1" font-family="sans-serif" font-size="13" font-weight="bold" letter-spacing="0.8">Heavy-Duty Warehouse Pallet Racks, Cantilever Arms &amp;amp; Industrial Workbenches</text>
+  <text x="754" y="462" fill="#94a3b8" font-family="monospace" font-size="11" text-anchor="end">PER CLIENT DRAWING / BOQ</text>
+</svg>

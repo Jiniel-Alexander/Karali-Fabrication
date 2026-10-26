@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 280" width="960" height="280" role="img" aria-label="Three-step fabrication workflow: Drawing and BoQ review, shop cutting and welding, and on-site erection across MMR">
+  <defs>
+    <linearGradient id="proc-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#07122b"/>
+      <stop offset="55%" stop-color="#102454"/>
+      <stop offset="100%" stop-color="#1d3b82"/>
+    </linearGradient>
+    <linearGradient id="proc-steel" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#cbd5e1"/>
+      <stop offset="50%" stop-color="#94a3b8"/>
+      <stop offset="100%" stop-color="#475569"/>
+    </linearGradient>
+    <linearGradient id="proc-steel-dark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="proc-orange" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f5a623"/>
+      <stop offset="100%" stop-color="#ffcf70"/>
+    </linearGradient>
+    <radialGradient id="proc-glow" cx="68%" cy="40%" r="48%">
+      <stop offset="0%" stop-color="#f5a623" stop-opacity="0.38"/>
+      <stop offset="50%" stop-color="#f5a623" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#07122b" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="proc-grid" width="36" height="36" patternUnits="userSpaceOnUse">
+      <path d="M 36 0 L 0 0 0 36" fill="none" stroke="#4267b2" stroke-width="0.7" stroke-opacity="0.28"/>
+    </pattern>
+  </defs>
+  <rect width="960" height="280" rx="12" fill="url(#proc-bg)"/>
+  <rect width="960" height="280" rx="12" fill="url(#proc-grid)"/>
+
+  <!-- Connecting Pipeline Line -->
+  <line x1="180" y1="125" x2="780" y2="125" stroke="#f5a623" stroke-width="4" stroke-dasharray="10 6"/>
+
+  <!-- Step 1 Node -->
+  <g transform="translate(55, 42)">
+    <rect width="230" height="190" rx="10" fill="#0a1838" stroke="#3b62b5" stroke-width="2"/>
+    <rect x="18" y="18" width="64" height="28" rx="5" fill="#f5a623"/>
+    <text x="50" y="37" fill="#07122b" font-family="monospace" font-size="13" font-weight="bold" text-anchor="middle">STEP 01</text>
+    <path d="M165,24 h28 v34 h-28 z M171,33 h16 M171,41 h16 M171,49 h10" fill="none" stroke="#f5a623" stroke-width="2"/>
+    <text x="18" y="88" fill="#ffffff" font-family="sans-serif" font-size="16" font-weight="bold">DRAWING &amp; BOQ REVIEW</text>
+    <text x="18" y="116" fill="#cbd5e1" font-family="sans-serif" font-size="12.5">Share structural drawings,</text>
+    <text x="18" y="136" fill="#cbd5e1" font-family="sans-serif" font-size="12.5">section schedules, sketches</text>
+    <text x="18" y="156" fill="#cbd5e1" font-family="sans-serif" font-size="12.5">or site dimensions on WhatsApp.</text>
+  </g>
+
+  <!-- Step 2 Node -->
+  <g transform="translate(365, 42)">
+    <rect width="230" height="190" rx="10" fill="#0a1838" stroke="#f5a623" stroke-width="2"/>
+    <rect x="18" y="18" width="64" height="28" rx="5" fill="#f5a623"/>
+    <text x="50" y="37" fill="#07122b" font-family="monospace" font-size="13" font-weight="bold" text-anchor="middle">STEP 02</text>
+    <circle cx="182" cy="38" r="14" fill="none" stroke="#f5a623" stroke-width="2.5"/>
+    <circle cx="182" cy="38" r="4" fill="#f5a623"/>
+    <text x="18" y="88" fill="#ffffff" font-family="sans-serif" font-size="16" font-weight="bold">CUTTING, FIT-UP &amp; WELD</text>
+    <text x="18" y="116" fill="#cbd5e1" font-family="sans-serif" font-size="12.5">Itemised quotation followed</text>
+    <text x="18" y="136" fill="#cbd5e1" font-family="sans-serif" font-size="12.5">by precision section cutting,</text>
+    <text x="18" y="156" fill="#cbd5e1" font-family="sans-serif" font-size="12.5">drilling, fit-up &amp; welding.</text>
+  </g>
+
+  <!-- Step 3 Node -->
+  <g transform="translate(675, 42)">
+    <rect width="230" height="190" rx="10" fill="#0a1838" stroke="#3b62b5" stroke-width="2"/>
+    <rect x="18" y="18" width="64" height="28" rx="5" fill="#f5a623"/>
+    <text x="50" y="37" fill="#07122b" font-family="monospace" font-size="13" font-weight="bold" text-anchor="middle">STEP 03</text>
+    <path d="M162,50 L182,24 L202,50 H162 Z" fill="none" stroke="#f5a623" stroke-width="2.2"/>
+    <text x="18" y="88" fill="#ffffff" font-family="sans-serif" font-size="16" font-weight="bold">MMR SITE ERECTION</text>
+    <text x="18" y="116" fill="#cbd5e1" font-family="sans-serif" font-size="12.5">Coordinated delivery, rigging,</text>
+    <text x="18" y="136" fill="#cbd5e1" font-family="sans-serif" font-size="12.5">bolted/welded assembly &amp;</text>
+    <text x="18" y="156" fill="#cbd5e1" font-family="sans-serif" font-size="12.5">erection across 57 MMR zones.</text>
+  </g>
+</svg>

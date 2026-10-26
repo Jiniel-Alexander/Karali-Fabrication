@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500" role="img" aria-label="Housing Society Window Safety Grills, Box Grills &amp;amp; Balcony Cages">
+  <defs>
+    <linearGradient id="svc11-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#07122b"/>
+      <stop offset="55%" stop-color="#102454"/>
+      <stop offset="100%" stop-color="#1d3b82"/>
+    </linearGradient>
+    <linearGradient id="svc11-steel" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#cbd5e1"/>
+      <stop offset="50%" stop-color="#94a3b8"/>
+      <stop offset="100%" stop-color="#475569"/>
+    </linearGradient>
+    <linearGradient id="svc11-steel-dark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="svc11-orange" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f5a623"/>
+      <stop offset="100%" stop-color="#ffcf70"/>
+    </linearGradient>
+    <radialGradient id="svc11-glow" cx="68%" cy="40%" r="48%">
+      <stop offset="0%" stop-color="#f5a623" stop-opacity="0.38"/>
+      <stop offset="50%" stop-color="#f5a623" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#07122b" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="svc11-grid" width="36" height="36" patternUnits="userSpaceOnUse">
+      <path d="M 36 0 L 0 0 0 36" fill="none" stroke="#4267b2" stroke-width="0.7" stroke-opacity="0.28"/>
+    </pattern>
+  </defs>
+  <rect width="800" height="500" fill="url(#svc11-bg)"/>
+  <rect width="800" height="500" fill="url(#svc11-grid)"/>
+  <rect width="800" height="500" fill="url(#svc11-glow)"/>
+
+  <!-- Top Technical Header Bar -->
+  <rect x="28" y="24" width="744" height="38" rx="6" fill="#08132c" fill-opacity="0.78" stroke="#335599" stroke-width="1"/>
+  <circle cx="50" cy="43" r="5" fill="#f5a623"/>
+  <text x="66" y="48" fill="#e2e8f0" font-family="monospace" font-size="13" font-weight="bold" letter-spacing="1.5">11 / BUILDING FACADE &amp;amp; SAFETY</text>
+  <text x="752" y="48" fill="#f5a623" font-family="monospace" font-size="12" text-anchor="end" letter-spacing="1">KF-SVC-11 // WINDOW SAFETY GRILLS</text>
+
+  <!-- Main Structural Scene -->
+  
+      <g>
+        <!-- Outer Concrete Window Reveal -->
+        <rect x="180" y="80" width="440" height="340" fill="none" stroke="#475569" stroke-width="16"/>
+        <!-- Structural Box Frame Outer Steel -->
+        <rect x="200" y="100" width="400" height="300" fill="#071430" stroke="url(#svc11-steel)" stroke-width="6"/>
+        <!-- Solid Square Vertical Bars (Child-Safe Spacing) -->
+        <g stroke="url(#svc11-steel)" stroke-width="4">
+          <line x1="240" y1="100" x2="240" y2="400"/><line x1="280" y1="100" x2="280" y2="400"/>
+          <line x1="320" y1="100" x2="320" y2="400"/><line x1="360" y1="100" x2="360" y2="400"/>
+          <line x1="400" y1="100" x2="400" y2="400"/><line x1="440" y1="100" x2="440" y2="400"/>
+          <line x1="480" y1="100" x2="480" y2="400"/><line x1="520" y1="100" x2="520" y2="400"/>
+          <line x1="560" y1="100" x2="560" y2="400"/>
+        </g>
+        <!-- Mid-Level Safety Horizontal Reinforcement Bar -->
+        <line x1="200" y1="250" x2="600" y2="250" stroke="url(#svc11-orange)" stroke-width="6"/>
+        <!-- Box Extension Planter Tray at Base -->
+        <rect x="185" y="375" width="430" height="30" fill="url(#svc11-orange)" stroke="#0f1f4a" stroke-width="2"/>
+        <!-- Wall Anchor Flanges -->
+        <rect x="175" y="160" width="30" height="12" fill="#f5a623"/>
+        <rect x="595" y="160" width="30" height="12" fill="#f5a623"/>
+        <rect x="175" y="320" width="30" height="12" fill="#f5a623"/>
+        <rect x="595" y="320" width="30" height="12" fill="#f5a623"/>
+      </g>
+
+  <!-- Base Horizon & Caption Bar -->
+  <line x1="40" y1="426" x2="760" y2="426" stroke="#f5a623" stroke-width="2.5"/>
+  <rect x="28" y="438" width="744" height="38" rx="6" fill="#08132c" fill-opacity="0.82"/>
+  <text x="46" y="462" fill="#cbd5e1" font-family="sans-serif" font-size="13" font-weight="bold" letter-spacing="0.8">Housing Society Window Safety Grills, Box Grills &amp;amp; Balcony Cages</text>
+  <text x="754" y="462" fill="#94a3b8" font-family="monospace" font-size="11" text-anchor="end">PER CLIENT DRAWING / BOQ</text>
+</svg>
