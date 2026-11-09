@@ -8,15 +8,15 @@
  * - Project details / scope validation (min 10 chars)
  * - Drawings availability status ('yes', 'in_progress', 'none')
  * - Anti-spam honeypot protection
+ * - Cloudflare Turnstile widget integration & token reset lifecycle
  * - Zero-storage WhatsApp drawing hand-off bridge
- * - Verified analytics event dispatch strictly upon confirmed write
+ * - Verified analytics event dispatch strictly upon confirmed database write
  */
 
 import { createCombobox } from './combobox.js';
 import { CORE_SERVICES } from '../data/services.js';
 import { isAllowedLocality } from '../data/localities.js';
 import { trackEvent } from '../lib/analytics.js';
-import { supabaseConfig } from '../lib/config.js';
 
 const PHONE_REGEX = /^(?:\+91)?[6-9]\d{9}$/;
 
@@ -38,43 +38,63 @@ export function initQuoteForm(formEl) {
   const honeypotInput = formEl.querySelector('#quote-website');
   const consentCheckbox = formEl.querySelector('#quote-consent');
 
-  // Turnstile integration (client‑side)
+  // Turnstile integration (client-side)
   const turnstileSiteKey = import.meta.env?.VITE_TURNSTILE_SITE_KEY;
   let turnstileToken = null;
+  let turnstileWidgetId = null;
+
+  function renderTurnstileWidget() {
+    if (!window.turnstile || !turnstileSiteKey) return;
+    turnstileWidgetId = window.turnstile.render('#turnstile-widget', {
+      sitekey: turnstileSiteKey,
+      callback: (token) => {
+        turnstileToken = token;
+        if (statusEl?.dataset.state === 'error') clearStatus();
+      },
+      'error-callback': () => {
+        turnstileToken = null;
+      },
+      'expired-callback': () => {
+        turnstileToken = null;
+      },
+    });
+  }
+
+  function resetTurnstileWidget() {
+    turnstileToken = null;
+    if (typeof window !== 'undefined' && window.turnstile) {
+      try {
+        if (turnstileWidgetId !== null && turnstileWidgetId !== undefined) {
+          window.turnstile.reset(turnstileWidgetId);
+        } else {
+          window.turnstile.reset();
+        }
+      } catch {
+        // Ignore widget reset errors
+      }
+    }
+  }
+
   if (turnstileSiteKey) {
-    // Insert container for the widget if not present
     let turnstileDiv = formEl.querySelector('#turnstile-widget');
     if (!turnstileDiv) {
       turnstileDiv = document.createElement('div');
       turnstileDiv.id = 'turnstile-widget';
-      // Place it before the submit button
       submitBtn?.parentNode?.insertBefore(turnstileDiv, submitBtn);
     }
-    // Load Cloudflare Turnstile script (once)
-    if (!window.__turnstileScriptLoaded) {
+    if (typeof window !== 'undefined' && !window.__turnstileScriptLoaded) {
       const script = document.createElement('script');
       script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
       script.async = true;
       script.onload = () => {
         window.__turnstileScriptLoaded = true;
-        window.turnstile.render('#turnstile-widget', {
-          sitekey: turnstileSiteKey,
-          callback: (token) => { turnstileToken = token; },
-          'error-callback': () => { turnstileToken = null; },
-          'expired-callback': () => { turnstileToken = null; },
-        });
+        renderTurnstileWidget();
       };
       document.head.appendChild(script);
-    } else if (window.turnstile) {
-      window.turnstile.render('#turnstile-widget', {
-        sitekey: turnstileSiteKey,
-        callback: (token) => { turnstileToken = token; },
-        'error-callback': () => { turnstileToken = null; },
-        'expired-callback': () => { turnstileToken = null; },
-      });
+    } else if (typeof window !== 'undefined' && window.turnstile) {
+      renderTurnstileWidget();
     }
   }
-
 
   let combobox = null;
   if (comboRoot) {
@@ -160,52 +180,37 @@ export function initQuoteForm(formEl) {
   }
 
   async function submitPayload(payload) {
-    // 1. Try serverless Cloudflare Functions /api/quote endpoint
+    // 1. Submit strictly through the Cloudflare Pages Function gateway (/api/quote)
     try {
       const res = await fetch('/api/quote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (res.ok) {
-        const json = await res.json().catch(() => ({ ok: true }));
-        if (json.ok) return { ok: true };
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.ok) {
+        if (json.mock) {
+          return { ok: true, mock: true };
+        }
+        return { ok: true, mock: false };
+      }
+      if (res.status !== 404 || !import.meta.env?.DEV) {
+        return {
+          ok: false,
+          error: json?.error || 'Unable to submit quote request. Please call +91 79775 91792 or use WhatsApp.',
+        };
       }
     } catch {
-      // Endpoint unreachable or running on static preview / local Vite dev
+      // Endpoint unreachable or running on static local Vite server without Pages Functions
     }
 
-    // 2. Direct Supabase Client fallback (if configured)
-    if (supabaseConfig.configured) {
-      try {
-        const { getSupabaseClient } = await import('../lib/supabase.js');
-        const client = getSupabaseClient();
-        if (client) {
-          const { error } = await client.from('quote_requests').insert({
-            full_name: payload.full_name,
-            phone: payload.phone,
-            service_slug: payload.service_slug,
-            locality: payload.locality,
-            project_details: payload.project_details,
-            drawings_status: payload.drawings_status,
-            consent: true,
-          });
-          if (!error) return { ok: true };
-        }
-      } catch {
-        // Supabase import or insert failed
-      }
-    }
-
-    // 3. Graceful dev / local preview fallback if in dev, mock, or local preview mode
+    // 2. Controlled local E2E test harness fallback ONLY when explicitly enabled on localhost/127.0.0.1
     if (
-      import.meta.env?.DEV ||
-      (typeof window !== 'undefined' &&
-        (window.__MOCK_QUOTE_SUCCESS__ ||
-          window.location.hostname === '127.0.0.1' ||
-          window.location.hostname === 'localhost'))
+      typeof window !== 'undefined' &&
+      window.__MOCK_QUOTE_SUCCESS__ === true &&
+      (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost')
     ) {
-      return { ok: true, mock: true };
+      return { ok: true, mock: true, e2eHarness: true };
     }
 
     return { ok: false, error: 'Network error or backend temporarily unavailable.' };
@@ -217,9 +222,9 @@ export function initQuoteForm(formEl) {
 
     // Honeypot check
     if (honeypotInput && honeypotInput.value.trim() !== '') {
-      // Silently discard spam submission
       formEl.reset();
       combobox?.reset();
+      resetTurnstileWidget();
       setStatus('success', 'Your request has been received.');
       return;
     }
@@ -228,8 +233,8 @@ export function initQuoteForm(formEl) {
 
     // 1. Name validation
     const fullName = nameInput?.value.trim() || '';
-    if (fullName.length < 2) {
-      setFieldError(nameInput, 'Please enter your name or company name (min 2 characters).');
+    if (fullName.length < 2 || fullName.length > 120) {
+      setFieldError(nameInput, 'Please enter your name or company name (2 to 120 characters).');
       if (!hasError) nameInput?.focus();
       hasError = true;
     } else {
@@ -239,7 +244,7 @@ export function initQuoteForm(formEl) {
     // 2. Phone validation
     const rawPhone = phoneInput?.value.trim().replace(/[\s\-()]/g, '') || '';
     const cleanPhone = rawPhone.startsWith('+91') ? rawPhone.slice(3) : rawPhone;
-    if (!PHONE_REGEX.test(rawPhone) && !/^[6-9]\d{9}$/.test(cleanPhone)) {
+    if (!PHONE_REGEX.test(rawPhone) || !/^[6-9]\d{9}$/.test(cleanPhone)) {
       setFieldError(phoneInput, 'Please enter a valid 10-digit Indian phone number (starting with 6-9).');
       if (!hasError) phoneInput?.focus();
       hasError = true;
@@ -272,8 +277,11 @@ export function initQuoteForm(formEl) {
 
     // 5. Project details
     const details = detailsInput?.value.trim() || '';
-    if (details.length < 10) {
-      setFieldError(detailsInput, 'Please provide at least 10 characters describing project scope or dimensions.');
+    if (details.length < 10 || details.length > 2000) {
+      setFieldError(
+        detailsInput,
+        'Please provide between 10 and 2000 characters describing project scope or dimensions.'
+      );
       if (!hasError) detailsInput?.focus();
       hasError = true;
     } else {
@@ -301,6 +309,12 @@ export function initQuoteForm(formEl) {
       return;
     }
 
+    // 7. Turnstile token check when site key is configured
+    if (turnstileSiteKey && !turnstileToken) {
+      setStatus('error', 'Please complete the human verification challenge before submitting.');
+      return;
+    }
+
     // Drawings status radio
     const drawingsRadio = formEl.querySelector('input[name="drawings_status"]:checked');
     const drawingsStatus = drawingsRadio ? drawingsRadio.value : 'none';
@@ -314,7 +328,6 @@ export function initQuoteForm(formEl) {
       project_details: details,
       drawings_status: drawingsStatus,
       consent: Boolean(consentCheckbox?.checked),
-      // Include Cloudflare Turnstile token for server verification
       turnstile_token: turnstileToken,
     };
 
@@ -324,6 +337,16 @@ export function initQuoteForm(formEl) {
     const result = await submitPayload(payload);
 
     setSubmitting(false);
+
+    // Never display the normal customer submission-success message or fire conversion analytics for a backend mock response
+    if (result.ok && result.mock && !result.e2eHarness) {
+      resetTurnstileWidget();
+      setStatus(
+        'error',
+        'Development mock mode active: form validation passed, but no quotation was saved to the database.'
+      );
+      return;
+    }
 
     if (result.ok) {
       // Fire analytics conversion event strictly upon confirmed write
@@ -378,12 +401,14 @@ export function initQuoteForm(formEl) {
         resetBtn?.addEventListener('click', () => {
           formEl.reset();
           combobox?.reset();
+          resetTurnstileWidget();
           successBridgeEl.hidden = true;
           if (formFieldsEl) formFieldsEl.hidden = false;
           clearStatus();
         });
       }
     } else {
+      resetTurnstileWidget();
       setStatus('error', result.error || 'Failed to submit quote request. Please call +91 79775 91792 or use WhatsApp.');
     }
   });
@@ -393,6 +418,7 @@ export function initQuoteForm(formEl) {
     reset() {
       formEl.reset();
       combobox?.reset();
+      resetTurnstileWidget();
       clearStatus();
       if (successBridgeEl) successBridgeEl.hidden = true;
       if (formFieldsEl) formFieldsEl.hidden = false;

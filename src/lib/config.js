@@ -1,12 +1,13 @@
 /**
  * Frontend Supabase configuration.
  *
- * Only two PUBLIC values are read, both via Vite env vars:
- *   VITE_SUPABASE_URL       – project API endpoint
- *   VITE_SUPABASE_ANON_KEY  – anon (JWT) or publishable (sb_publishable_...) key
+ * Only PUBLIC values are read via Vite env vars:
+ *   VITE_SUPABASE_URL             – project API endpoint
+ *   VITE_SUPABASE_PUBLISHABLE_KEY – preferred public publishable key (sb_publishable_...)
+ *   VITE_SUPABASE_ANON_KEY        – legacy fallback public key (anon JWT or sb_publishable_...)
  *
- * As a safety net, a privileged key (service_role JWT or sb_secret_...) is
- * refused so it can never be used from the browser even if misconfigured.
+ * As a safety net, a privileged key (service_role JWT or sb_secret_...) in either
+ * frontend key variable is refused so it can never be used from the browser even if misconfigured.
  */
 
 const PLACEHOLDER_PATTERN = /^(your[-_]|<your|replace[-_]|placeholder)/i;
@@ -27,6 +28,7 @@ function decodeJwtPayload(token) {
 }
 
 export function isPrivilegedKey(key) {
+  if (!key || typeof key !== 'string') return false;
   if (key.startsWith('sb_secret_')) return true;
   const payload = decodeJwtPayload(key);
   return payload?.role === 'service_role';
@@ -47,16 +49,18 @@ function isValidHttpsUrl(value) {
  */
 export function resolveSupabaseConfig(env) {
   const url = (env?.VITE_SUPABASE_URL ?? '').trim();
-  const anonKey = (env?.VITE_SUPABASE_ANON_KEY ?? '').trim();
+  const publishableKey = (env?.VITE_SUPABASE_PUBLISHABLE_KEY ?? '').trim();
+  const legacyAnonKey = (env?.VITE_SUPABASE_ANON_KEY ?? '').trim();
+  const anonKey = publishableKey || legacyAnonKey;
 
+  if (isPrivilegedKey(publishableKey) || isPrivilegedKey(legacyAnonKey)) {
+    return { configured: false, url: '', anonKey: '', problem: 'privileged-key' };
+  }
   if (!url || !anonKey || isPlaceholder(anonKey)) {
     return { configured: false, url: '', anonKey: '', problem: 'missing' };
   }
   if (!isValidHttpsUrl(url)) {
     return { configured: false, url: '', anonKey: '', problem: 'invalid-url' };
-  }
-  if (isPrivilegedKey(anonKey)) {
-    return { configured: false, url: '', anonKey: '', problem: 'privileged-key' };
   }
   return { configured: true, url, anonKey, problem: null };
 }
@@ -65,9 +69,11 @@ export const supabaseConfig = resolveSupabaseConfig(import.meta.env);
 
 if (import.meta.env?.DEV && !supabaseConfig.configured) {
   const hints = {
-    missing: 'Copy .env.example to .env.local and set VITE_SUPABASE_ANON_KEY.',
+    missing:
+      'Copy .env.example to .env.local and set VITE_SUPABASE_PUBLISHABLE_KEY (or legacy VITE_SUPABASE_ANON_KEY).',
     'invalid-url': 'VITE_SUPABASE_URL is not a valid https URL.',
-    'privileged-key': 'VITE_SUPABASE_ANON_KEY is a service_role/secret key. Use the public anon/publishable key ONLY.',
+    'privileged-key':
+      'VITE_SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_ANON_KEY is a service_role/secret key. Use the public publishable (sb_publishable_...) or anon key ONLY.',
   };
   console.warn(`[supabase] Not configured: ${hints[supabaseConfig.problem]}`);
 }

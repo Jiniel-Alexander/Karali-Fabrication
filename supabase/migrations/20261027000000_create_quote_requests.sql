@@ -1,33 +1,51 @@
 -- ===========================================================================
 -- Migration: create quote_requests
 --
--- STATUS: PROPOSED — NOT APPLIED. Review before running `npx supabase db push`.
+-- STATUS: PROPOSED — NOT APPLIED. Review before running in Supabase SQL Editor.
 --
--- Purpose: Store commercial and industrial project quote requests submitted via
--- the Phase 4 Karali Fabrication quote form.
+-- Purpose: Store commercial and industrial project quote requests submitted
+-- exclusively via the Cloudflare Pages Function (/api/quote) after server-side
+-- Turnstile bot verification.
 --
--- Security model:
---   * Self-contained: ensures schema `private` exists and is revoked from public.
---   * RLS enabled and forced; the only policy is INSERT for the `anon` role.
---   * `anon` has NO select / update / delete privileges (commercial lead confidentiality).
---   * `anon` may insert ONLY validated form columns (column-level grant), so the
---     browser cannot forge `id` or `created_at`.
---   * Input constraints strictly enforced at database level (name length, phone format,
---     12 allowed service slugs, 57 MMR localities via private.is_allowed_locality).
---   * Consent must be explicitly provided (no default true).
+-- Migration History & Live Database Findings:
+--   * Catalog inspection confirmed:
+--       - public.location_test_submissions exists.
+--       - private.is_allowed_locality(text) exists.
+--       - anon & service_role already have USAGE on `private` and EXECUTE on
+--         `private.is_allowed_locality(text)`.
+--       - public.quote_requests returned NULL from to_regclass().
+--       - private.is_allowed_service_slug(text) returned NULL from to_regprocedure().
+--   * Live migration tracking schema: No schema matching '%migration%' was found
+--     in information_schema.schemata. Migration history therefore could not be
+--     independently verified through the database engine.
+--   * Existing repository migration filename is retained to maintain consistency
+--     with local repository history and automated tests.
+--
+-- Compatibility & Security Model:
+--   * public.location_test_submissions is completely untouched.
+--   * private.is_allowed_locality(text) and its existing permissions
+--     (anon & service_role EXECUTE) are NOT redefined, replaced, revoked, or modified.
+--   * Only the new private.is_allowed_service_slug(text) helper is created in `private`.
+--   * public.quote_requests contains exactly seven business fields plus `id` and `created_at`.
+--   * Phone numbers are strictly constrained to normalized 10-digit Indian mobile numbers
+--     ('^[6-9][0-9]{9}$'), matching the serverless endpoint normalization.
+--   * RLS is enabled and forced on public.quote_requests.
+--   * No policies or table privileges are granted to `anon` or `authenticated`,
+--     blocking all direct client-side PostgREST access.
+--   * service_role receives ONLY column-level INSERT on the seven business fields.
+--   * Cloudflare endpoint sends `Prefer: return=minimal` so no SELECT privilege is required.
+--   * Turnstile tokens are verification artifacts and are never stored in the database.
 -- ===========================================================================
 
--- ---------------------------------------------------------------------------
--- 1. Private Schema & Security Setup
--- ---------------------------------------------------------------------------
-create schema if not exists private;
-revoke all on schema private from public;
-grant usage on schema private to anon, authenticated, service_role;
+-- Atomic migration: any failure (including pre-existing objects) rolls back
+-- every statement, so a partially applied migration cannot occur.
+begin;
 
 -- ---------------------------------------------------------------------------
--- 2. Validation Helper: Allowed Service Slugs
+-- 1. Service Slug Validation Helper (schema `private` already exists live)
 -- ---------------------------------------------------------------------------
-create or replace function private.is_allowed_service_slug(value text)
+-- Plain CREATE (no OR REPLACE): fails clearly if an unexpected function exists.
+create function private.is_allowed_service_slug(value text)
 returns boolean
 language sql
 immutable
@@ -50,21 +68,24 @@ as $$
 $$;
 
 comment on function private.is_allowed_service_slug(text)
-  is 'True when value matches one of the 12 approved Karali Fabrication service slugs.';
+  is 'True when value matches one of the 12 approved Karali Fabrication core service slugs.';
 
-grant execute on function private.is_allowed_service_slug(text) to anon, authenticated, service_role;
+-- Restrict function execution: service_role only (used during CHECK constraint validation)
+revoke all on function private.is_allowed_service_slug(text) from public, anon, authenticated;
+grant execute on function private.is_allowed_service_slug(text) to service_role;
 
 -- ---------------------------------------------------------------------------
--- 3. Table: quote_requests
+-- 2. Table: public.quote_requests
 -- ---------------------------------------------------------------------------
-create table if not exists public.quote_requests (
+-- Plain CREATE (no IF NOT EXISTS): fails clearly if an unexpected table exists.
+create table public.quote_requests (
   id              uuid        primary key default gen_random_uuid(),
   full_name       text        not null
                   constraint quote_requests_name_len
                   check (char_length(trim(full_name)) >= 2 and char_length(trim(full_name)) <= 120),
   phone           text        not null
                   constraint quote_requests_phone_format
-                  check (phone ~ '^[6-9][0-9]{9}$' or phone ~ '^\+91[6-9][0-9]{9}$'),
+                  check (phone ~ '^[6-9][0-9]{9}$'),
   service_slug    text        not null
                   constraint quote_requests_service_slug_allowed
                   check (private.is_allowed_service_slug(service_slug)),
@@ -84,19 +105,24 @@ create table if not exists public.quote_requests (
 );
 
 comment on table public.quote_requests
-  is 'Phase 4 industrial quote enquiries with zero-storage drawing bridge reference.';
+  is 'Phase 4 industrial quotation requests submitted exclusively via Cloudflare Pages Function (/api/quote).';
 
 -- ---------------------------------------------------------------------------
--- 4. Row Level Security & Column-Level Grants
+-- 3. Row Level Security & Least-Privilege Grants
 -- ---------------------------------------------------------------------------
 alter table public.quote_requests enable row level security;
 alter table public.quote_requests force row level security;
 
--- Revoke default grants from PUBLIC, anon, and authenticated
-revoke all on table public.quote_requests from public, anon, authenticated;
-grant usage on schema public to anon;
+-- Defensive cleanup in case an older draft policy was ever created
+drop policy if exists "anon can submit quote requests" on public.quote_requests;
 
--- Grant back ONLY column-level INSERT for client fields
+-- Revoke all default table privileges from all roles
+revoke all on table public.quote_requests from public, anon, authenticated, service_role;
+
+-- Ensure service_role can resolve table in schema public
+grant usage on schema public to service_role;
+
+-- Grant service_role ONLY column-level INSERT on the seven user-submitted fields
 grant insert (
   full_name,
   phone,
@@ -105,24 +131,9 @@ grant insert (
   project_details,
   drawings_status,
   consent
-) on table public.quote_requests to anon;
+) on table public.quote_requests to service_role;
 
-drop policy if exists "anon can submit quote requests" on public.quote_requests;
-create policy "anon can submit quote requests"
-  on public.quote_requests
-  for insert
-  to anon
-  with check (
-    char_length(trim(full_name)) >= 2 and
-    char_length(trim(full_name)) <= 120 and
-    (phone ~ '^[6-9][0-9]{9}$' or phone ~ '^\+91[6-9][0-9]{9}$') and
-    private.is_allowed_service_slug(service_slug) and
-    private.is_allowed_locality(locality) and
-    char_length(trim(project_details)) >= 10 and
-    char_length(trim(project_details)) <= 2000 and
-    drawings_status in ('yes', 'in_progress', 'none') and
-    consent = true
-  );
+-- No SELECT, UPDATE, or DELETE privileges are granted to any role.
+-- No policies exist for anon or authenticated (all direct client PostgREST access rejected).
 
--- No SELECT / UPDATE / DELETE policies or grants for anon or authenticated.
--- Commercial quote requests are private to Karali Fabrication management.
+commit;
