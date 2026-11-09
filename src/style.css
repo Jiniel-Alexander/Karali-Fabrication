@@ -2456,6 +2456,13 @@ p {
   flex: none;
 }
 
+.form__turnstile {
+  display: flex;
+  justify-content: flex-start;
+  min-height: 65px;
+  margin: 0.25rem 0;
+}
+
 /* Success Bridge */
 .quote-success {
   text-align: center;

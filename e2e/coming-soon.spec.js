@@ -547,6 +547,24 @@ test.describe('Karali Fabrication — Homepage, Dedicated Service Pages & Core R
       });
     });
 
+    await page.route('**/challenges.cloudflare.com/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/javascript',
+        body: `
+          window.turnstile = {
+            render: function(container, options) {
+              if (options && typeof options.callback === 'function') {
+                setTimeout(() => options.callback('e2e-turnstile-token'), 50);
+              }
+              return 'e2e-widget-id';
+            },
+            reset: function() {}
+          };
+        `,
+      });
+    });
+
     await page.goto('/');
 
     const quoteForm = page.locator('#quote-form');
@@ -602,6 +620,7 @@ test.describe('Karali Fabrication — Homepage, Dedicated Service Pages & Core R
       expect(requestPayload.phone).toBe('9876543210');
       expect(requestPayload.service_slug).toBe('industrial-sheds-mezzanines');
       expect(requestPayload.locality).toBe('Taloja');
+      expect(requestPayload.turnstile_token).toBe('e2e-turnstile-token');
     }
   });
 });

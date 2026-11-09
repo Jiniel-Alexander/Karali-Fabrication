@@ -39,25 +39,37 @@ export function initQuoteForm(formEl) {
   const consentCheckbox = formEl.querySelector('#quote-consent');
 
   // Turnstile integration (client-side)
-  const turnstileSiteKey = import.meta.env?.VITE_TURNSTILE_SITE_KEY;
+  // In test environments (Vitest), site key requires explicit opt-in via dataset.sitekey so unit tests without DOM/turnstile are unaffected
+  const turnstileSiteKey =
+    formEl?.dataset?.sitekey?.trim() ||
+    (import.meta.env?.MODE === 'test'
+      ? ''
+      : (typeof import.meta.env?.VITE_TURNSTILE_SITE_KEY === 'string' && import.meta.env.VITE_TURNSTILE_SITE_KEY.trim()) ||
+        '0x4AAAAAAF6FHuSM5ZiycyyY');
   let turnstileToken = null;
   let turnstileWidgetId = null;
 
   function renderTurnstileWidget() {
-    if (!window.turnstile || !turnstileSiteKey) return;
-    turnstileWidgetId = window.turnstile.render('#turnstile-widget', {
-      sitekey: turnstileSiteKey,
-      callback: (token) => {
-        turnstileToken = token;
-        if (statusEl?.dataset.state === 'error') clearStatus();
-      },
-      'error-callback': () => {
-        turnstileToken = null;
-      },
-      'expired-callback': () => {
-        turnstileToken = null;
-      },
-    });
+    if (typeof window === 'undefined' || !window.turnstile || !turnstileSiteKey || turnstileWidgetId !== null) return;
+    const widgetContainer = formEl.querySelector('#turnstile-widget');
+    if (!widgetContainer) return;
+    try {
+      turnstileWidgetId = window.turnstile.render(widgetContainer, {
+        sitekey: turnstileSiteKey,
+        callback: (token) => {
+          turnstileToken = token;
+          if (statusEl?.dataset.state === 'error') clearStatus();
+        },
+        'error-callback': () => {
+          turnstileToken = null;
+        },
+        'expired-callback': () => {
+          turnstileToken = null;
+        },
+      });
+    } catch {
+      // Ignore widget render errors
+    }
   }
 
   function resetTurnstileWidget() {
@@ -75,14 +87,15 @@ export function initQuoteForm(formEl) {
     }
   }
 
-  if (turnstileSiteKey) {
+  if (turnstileSiteKey && typeof window !== 'undefined') {
     let turnstileDiv = formEl.querySelector('#turnstile-widget');
-    if (!turnstileDiv) {
+    if (!turnstileDiv && typeof document !== 'undefined') {
       turnstileDiv = document.createElement('div');
       turnstileDiv.id = 'turnstile-widget';
+      turnstileDiv.className = 'form__turnstile';
       submitBtn?.parentNode?.insertBefore(turnstileDiv, submitBtn);
     }
-    if (typeof window !== 'undefined' && !window.__turnstileScriptLoaded) {
+    if (typeof document !== 'undefined' && !window.__turnstileScriptLoaded) {
       const script = document.createElement('script');
       script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
       script.async = true;
@@ -91,7 +104,7 @@ export function initQuoteForm(formEl) {
         renderTurnstileWidget();
       };
       document.head.appendChild(script);
-    } else if (typeof window !== 'undefined' && window.turnstile) {
+    } else if (window.turnstile) {
       renderTurnstileWidget();
     }
   }

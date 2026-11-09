@@ -1018,7 +1018,7 @@
               </p>
             </div>
 
-            <form id="quote-form" class="quote-form" novalidate>
+            <form id="quote-form" class="quote-form" data-sitekey="0x4AAAAAAF6FHuSM5ZiycyyY" novalidate>
               <div id="quote-form-fields" class="form__fields">
                 <div class="form__row form__row--two-col">
                   <!-- Name -->
@@ -1171,6 +1171,9 @@
                   <span>I agree to allow Karali Fabrication to contact me regarding this quotation inquiry. No promotional spam.</span>
                 </label>
                 <span class="field-error" id="quote-consent-error" hidden></span>
+
+                <!-- Cloudflare Turnstile Managed Challenge (Site key: 0x4AAAAAAF6FHuSM5ZiycyyY) -->
+                <div id="turnstile-widget" class="form__turnstile"></div>
 
                 <!-- Status Live Region -->
                 <div id="quote-status" class="form-status" role="status" aria-live="polite" hidden></div>

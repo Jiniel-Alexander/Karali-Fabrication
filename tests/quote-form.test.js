@@ -391,6 +391,152 @@ describe('Frontend Quotation Form Gateway & Mock Protection (`src/components/quo
 
     globalThis.fetch = originalFetch;
   });
+
+  it('manages Cloudflare Turnstile widget lifecycle: renders with site key, blocks submission without token, sends token on success, and resets on error', async () => {
+    const originalFetch = globalThis.fetch;
+    const originalTurnstile = globalThis.window?.turnstile;
+
+    let renderedSiteKey = null;
+    let renderCallbacks = {};
+    let resetCount = 0;
+
+    const mockTurnstile = {
+      render: vi.fn((container, options) => {
+        renderedSiteKey = options.sitekey;
+        renderCallbacks = options;
+        return 'widget-id-123';
+      }),
+      reset: vi.fn(() => {
+        resetCount++;
+      }),
+    };
+
+    globalThis.window = globalThis.window || {};
+    globalThis.window.location = { pathname: '/', hostname: 'localhost' };
+    globalThis.window.turnstile = mockTurnstile;
+
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true }),
+    });
+    globalThis.fetch = fetchSpy;
+
+    const submitHandlers = [];
+    const statusEl = { dataset: {}, textContent: '', hidden: true };
+    const successBridgeEl = { hidden: true, innerHTML: '', querySelector: () => null };
+    const formFieldsEl = { hidden: false };
+
+    const makeField = (value) => ({
+      value,
+      disabled: false,
+      parentElement: { querySelector: () => null },
+      addEventListener: () => {},
+      setAttribute: () => {},
+      removeAttribute: () => {},
+      focus: () => {},
+    });
+
+    const comboInputListeners = {};
+    const comboInput = {
+      value: 'Powai',
+      disabled: false,
+      addEventListener: (type, fn) => {
+        comboInputListeners[type] = fn;
+      },
+      setAttribute: () => {},
+      removeAttribute: () => {},
+      focus: () => {},
+    };
+
+    const turnstileDiv = {
+      id: 'turnstile-widget',
+      parentNode: { insertBefore: () => {} },
+    };
+
+    const fields = {
+      '#quote-submit': {
+        disabled: false,
+        setAttribute: () => {},
+        querySelector: () => ({ textContent: '' }),
+        parentNode: { insertBefore: () => {} },
+      },
+      '#quote-status': statusEl,
+      '#quote-success-bridge': successBridgeEl,
+      '#quote-form-fields': formFieldsEl,
+      '#quote-locality-combobox': {
+        id: 'quote-locality-combobox',
+        classList: { toggle: () => {} },
+        contains: () => false,
+        addEventListener: (type, fn) => {
+          if (type === 'focusout') comboInputListeners.focusout = fn;
+        },
+        setAttribute: () => {},
+        removeAttribute: () => {},
+        parentElement: { querySelector: () => null },
+        querySelector: (sel) => {
+          if (sel === '[data-combobox-input]') {
+            return comboInput;
+          }
+          return { id: 'list', hidden: true, replaceChildren: () => {}, append: () => {}, addEventListener: () => {} };
+        },
+      },
+      '#quote-name': makeField('Ramesh Patel'),
+      '#quote-phone': makeField('9876543210'),
+      '#quote-service': makeField('structural-steel-fabrication'),
+      '#quote-details': makeField('Need 50 tons steel fabrication for industrial warehouse in Powai.'),
+      '#quote-website': makeField(''),
+      '#quote-consent': {
+        checked: true,
+        addEventListener: () => {},
+        removeAttribute: () => {},
+        parentElement: { querySelector: () => null },
+      },
+      'input[name="drawings_status"]:checked': { value: 'yes' },
+      '#turnstile-widget': turnstileDiv,
+    };
+
+    const fakeForm = {
+      dataset: { sitekey: '0x4AAAAAAF6FHuSM5ZiycyyY' },
+      querySelector: (sel) => fields[sel] ?? null,
+      addEventListener: (type, fn) => {
+        if (type === 'submit') submitHandlers.push(fn);
+      },
+      setAttribute: () => {},
+      reset: () => {},
+    };
+
+    const instance = initQuoteForm(fakeForm);
+    comboInputListeners.focusout?.({ relatedTarget: null });
+
+    // 1. Renders Turnstile widget using the supplied site key
+    expect(mockTurnstile.render).toHaveBeenCalled();
+    expect(renderedSiteKey).toBe('0x4AAAAAAF6FHuSM5ZiycyyY');
+
+    // 2. Submission blocked when token is missing
+    await submitHandlers[0]({ preventDefault: () => {} });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(statusEl.dataset.state).toBe('error');
+    expect(statusEl.textContent).toMatch(/human verification/i);
+
+    // 3. Callback sets token -> submission succeeds and passes turnstile_token in payload
+    renderCallbacks.callback('test-turnstile-token-xyz');
+    await submitHandlers[0]({ preventDefault: () => {} });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    expect(body.turnstile_token).toBe('test-turnstile-token-xyz');
+
+    // 4. Form reset invokes widget reset
+    instance.reset();
+    expect(mockTurnstile.reset).toHaveBeenCalledWith('widget-id-123');
+
+    globalThis.fetch = originalFetch;
+    if (originalTurnstile) {
+      globalThis.window.turnstile = originalTurnstile;
+    } else {
+      delete globalThis.window.turnstile;
+    }
+  });
 });
 
 describe('Database Migration Safety (`supabase/migrations/20261027000000_create_quote_requests.sql`)', () => {

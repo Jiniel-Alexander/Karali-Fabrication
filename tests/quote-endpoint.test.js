@@ -572,6 +572,24 @@ describe('Cloudflare Pages Quote Endpoint (`functions/api/quote.js`)', () => {
     expect(resInvalidToken.status).toBe(403);
     expect(fetchSpy).toHaveBeenCalledTimes(1);
 
+    // 3b. Siteverify returns timeout-or-duplicate (expired or replayed token) -> 403, no Supabase call
+    fetchSpy.mockClear();
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ success: false, 'error-codes': ['timeout-or-duplicate'] }),
+    });
+    const reqReplayedToken = createMockRequest({
+      method: 'POST',
+      headers: { Origin: 'https://karalifabrication.in' },
+      body: JSON.stringify({ ...VALID_PAYLOAD, turnstile_token: 'replayed-token' }),
+    });
+    const resReplayedToken = await handleQuotePost({ request: reqReplayedToken, env: PROD_ENV });
+    expect(resReplayedToken.status).toBe(403);
+    const jsonReplayed = await resReplayedToken.json();
+    expect(jsonReplayed.ok).toBe(false);
+    expect(jsonReplayed.error).toMatch(/Human verification failed/i);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
     // 4. Siteverify returns wrong hostname -> 403, no Supabase call
     fetchSpy.mockClear();
     fetchSpy.mockResolvedValueOnce({
