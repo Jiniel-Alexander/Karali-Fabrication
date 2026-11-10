@@ -411,22 +411,62 @@ describe('Cloudflare Pages Quote Endpoint (`functions/api/quote.js`)', () => {
     expect(json.error).toMatch(/Malformed JSON/i);
   });
 
-  it('silently drops honeypot spam with 200 OK without touching Turnstile or Supabase', async () => {
+  it('rejects filled honeypot submissions with 400 and never touches Turnstile or inserts into Supabase, while allowing empty honeypot to proceed', async () => {
     const fetchSpy = vi.fn();
     globalThis.fetch = fetchSpy;
 
-    const spamPayload = { ...VALID_PAYLOAD, website: 'https://spambot.net' };
+    // 1. Filled website honeypot -> rejected with 400, ok: false, zero external/DB calls
+    const spamPayload = { ...VALID_PAYLOAD, website: 'https://spambot.net', turnstile_token: 'tok' };
     const request = createMockRequest({
       method: 'POST',
       headers: { Origin: 'https://karalifabrication.in' },
       body: JSON.stringify(spamPayload),
     });
     const res = await handleQuotePost({ request, env: PROD_ENV });
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(400);
     const json = await res.json();
-    expect(json.ok).toBe(true);
-    expect(json.dropped).toBe(true);
+    expect(json.ok).toBe(false);
+    expect(json.error).toMatch(/Spam submission rejected/i);
     expect(fetchSpy).not.toHaveBeenCalled();
+
+    // 2. Filled hp_field honeypot -> rejected with 400, ok: false, zero external/DB calls
+    const hpPayload = { ...VALID_PAYLOAD, hp_field: 'bot-value', turnstile_token: 'tok' };
+    const reqHp = createMockRequest({
+      method: 'POST',
+      headers: { Origin: 'https://karalifabrication.in' },
+      body: JSON.stringify(hpPayload),
+    });
+    const resHp = await handleQuotePost({ request: reqHp, env: PROD_ENV });
+    expect(resHp.status).toBe(400);
+    const jsonHp = await resHp.json();
+    expect(jsonHp.ok).toBe(false);
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    // 3. Empty honeypot (website: '') + valid Turnstile token -> proceeds and inserts into Supabase
+    const dbCalls = [];
+    globalThis.fetch = vi.fn(async (url, init) => {
+      if (String(url).includes('turnstile')) {
+        return {
+          ok: true,
+          json: async () => ({ success: true, hostname: 'karalifabrication.in' }),
+        };
+      }
+      dbCalls.push({ url: String(url), body: JSON.parse(init.body) });
+      return { ok: true, status: 201, text: async () => '' };
+    });
+
+    const cleanRequest = createMockRequest({
+      method: 'POST',
+      headers: { Origin: 'https://karalifabrication.in' },
+      body: JSON.stringify({ ...VALID_PAYLOAD, website: '', turnstile_token: 'valid-tok' }),
+    });
+    const cleanRes = await handleQuotePost({ request: cleanRequest, env: PROD_ENV });
+    expect(cleanRes.status).toBe(200);
+    const cleanJson = await cleanRes.json();
+    expect(cleanJson).toEqual({ ok: true });
+    expect(dbCalls).toHaveLength(1);
+    expect(dbCalls[0].url).toBe('https://test-project.supabase.co/rest/v1/quote_requests');
+    expect(dbCalls[0].body.website).toBeUndefined();
   });
 
   it('validates required fields strictly on the server', async () => {

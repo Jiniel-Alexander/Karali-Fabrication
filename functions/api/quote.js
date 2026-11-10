@@ -7,7 +7,7 @@
  * 3. Origin validation & per-request CORS headers (403 for untrusted origins)
  * 4. Enforced body size limits (max 64 KB streaming limit, 413)
  * 5. Safe JSON parsing with malformed syntax protection (400)
- * 6. Anti-spam honeypot (silent 200 drop)
+ * 6. Anti-spam honeypot rejection (400 without touching Turnstile or Supabase)
  * 7. Authoritative server-side field validation (name, phone, service, locality, details, consent)
  * 8. Cloudflare Turnstile bot verification & exact hostname validation before any DB write
  * 9. Server-side Supabase write using SUPABASE_SECRET_KEY (or legacy SUPABASE_SERVICE_ROLE_KEY) with Prefer: return=minimal
@@ -470,10 +470,13 @@ export async function handleQuotePost(context) {
     });
   }
 
-  // 9. Honeypot check (silent drop before external calls)
-  if (data.website || data.hp_field) {
-    return new Response(JSON.stringify({ ok: true, dropped: true }), {
-      status: 200,
+  // 9. Honeypot check (reject filled honeypot before external calls or database writes)
+  const hasHoneypot =
+    (typeof data.website === 'string' ? data.website.trim() !== '' : Boolean(data.website)) ||
+    (typeof data.hp_field === 'string' ? data.hp_field.trim() !== '' : Boolean(data.hp_field));
+  if (hasHoneypot) {
+    return new Response(JSON.stringify({ ok: false, error: 'Spam submission rejected.' }), {
+      status: 400,
       headers: responseHeaders,
     });
   }

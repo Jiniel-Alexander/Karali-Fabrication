@@ -108,8 +108,8 @@ test.describe('Karali Fabrication — Homepage, Dedicated Service Pages & Core R
         contentType: 'application/javascript',
         body: `
           window.turnstile = {
-            ready: function(fn) {
-              if (typeof fn === 'function') fn();
+            ready: function() {
+              throw new Error('[Cloudflare Turnstile] Remove async/defer from the Turnstile api.js script tag before using turnstile.ready().');
             },
             render: function(container, options) {
               if (options && typeof options.callback === 'function') {
@@ -594,8 +594,8 @@ test.describe('Karali Fabrication — Homepage, Dedicated Service Pages & Core R
         contentType: 'application/javascript',
         body: `
           window.turnstile = {
-            ready: function(fn) {
-              if (typeof fn === 'function') fn();
+            ready: function() {
+              throw new Error('[Cloudflare Turnstile] Remove async/defer from the Turnstile api.js script tag before using turnstile.ready().');
             },
             render: function(container, options) {
               if (options && typeof options.callback === 'function') {
@@ -613,6 +613,13 @@ test.describe('Karali Fabrication — Homepage, Dedicated Service Pages & Core R
 
     const quoteForm = page.locator('#quote-form');
     await expect(quoteForm).toBeVisible();
+
+    // Verify honeypot is completely invisible to customers and not keyboard-focusable
+    const honeypotWrapper = page.locator('#quote-form .form__honeypot');
+    const honeypotInput = page.locator('#quote-website');
+    await expect(honeypotWrapper).toBeHidden();
+    await expect(honeypotInput).toBeHidden();
+    await expect(honeypotInput).toHaveAttribute('tabindex', '-1');
 
     const nameInput = page.locator('#quote-name');
     const phoneInput = page.locator('#quote-phone');
@@ -664,6 +671,7 @@ test.describe('Karali Fabrication — Homepage, Dedicated Service Pages & Core R
       expect(requestPayload.phone).toBe('9876543210');
       expect(requestPayload.service_slug).toBe('industrial-sheds-mezzanines');
       expect(requestPayload.locality).toBe('Taloja');
+      expect(requestPayload.website).toBe('');
       expect(requestPayload.turnstile_token).toBe('e2e-turnstile-token');
     }
   });

@@ -54,46 +54,37 @@ export function initQuoteForm(formEl) {
   let isRenderingTurnstile = false;
 
   function renderTurnstileWidget() {
-    if (typeof window === 'undefined' || !window.turnstile || !turnstileSiteKey) return;
+    if (typeof window === 'undefined' || typeof window.turnstile?.render !== 'function' || !turnstileSiteKey) return;
     if (turnstileWidgetId !== null || isRenderingTurnstile) return;
     const widgetContainer = formEl.querySelector('#turnstile-widget');
     if (!widgetContainer) return;
 
-    const executeRender = () => {
-      if (turnstileWidgetId !== null) return;
-      try {
-        isRenderingTurnstile = true;
-        turnstileWidgetId = window.turnstile.render(widgetContainer, {
-          sitekey: turnstileSiteKey,
-          callback: (token) => {
-            turnstileToken = token;
-            if (statusEl?.dataset.state === 'error') clearStatus();
-          },
-          'error-callback': (code) => {
-            turnstileToken = null;
-            console.warn('[turnstile] Human verification error encountered:', code || 'unspecified');
-          },
-          'expired-callback': () => {
-            turnstileToken = null;
-            setStatus('error', 'Human verification challenge expired. Please re-verify before submitting.');
-            resetTurnstileWidget();
-          },
-          'timeout-callback': () => {
-            turnstileToken = null;
-            console.warn('[turnstile] Human verification challenge timed out.');
-          },
-        });
-      } catch (err) {
-        console.warn('[turnstile] Failed to render Turnstile widget:', err?.message || 'render exception');
-      } finally {
-        isRenderingTurnstile = false;
-      }
-    };
-
-    if (typeof window.turnstile.ready === 'function') {
-      window.turnstile.ready(executeRender);
-    } else {
-      executeRender();
+    try {
+      isRenderingTurnstile = true;
+      turnstileWidgetId = window.turnstile.render(widgetContainer, {
+        sitekey: turnstileSiteKey,
+        callback: (token) => {
+          turnstileToken = token;
+          if (statusEl?.dataset.state === 'error') clearStatus();
+        },
+        'error-callback': (code) => {
+          turnstileToken = null;
+          console.warn('[turnstile] Human verification error encountered:', code || 'unspecified');
+        },
+        'expired-callback': () => {
+          turnstileToken = null;
+          setStatus('error', 'Human verification challenge expired. Please re-verify before submitting.');
+          resetTurnstileWidget();
+        },
+        'timeout-callback': () => {
+          turnstileToken = null;
+          console.warn('[turnstile] Human verification challenge timed out.');
+        },
+      });
+    } catch (err) {
+      console.warn('[turnstile] Failed to render Turnstile widget:', err?.message || 'render exception');
+    } finally {
+      isRenderingTurnstile = false;
     }
   }
 
@@ -126,7 +117,7 @@ export function initQuoteForm(formEl) {
       ? document.querySelector(`script[src="${SCRIPT_URL}"]`)
       : null;
 
-    if (window.turnstile) {
+    if (typeof window.turnstile?.render === 'function') {
       renderTurnstileWidget();
     } else if (existingScript) {
       existingScript.addEventListener('load', () => {
@@ -244,7 +235,7 @@ export function initQuoteForm(formEl) {
         body: JSON.stringify(payload),
       });
       const json = await res.json().catch(() => null);
-      if (res.ok && json?.ok) {
+      if (res.ok && json?.ok === true && !json?.dropped) {
         if (json.mock) {
           return { ok: true, mock: true };
         }
@@ -277,12 +268,11 @@ export function initQuoteForm(formEl) {
     event.preventDefault();
     if (isSubmitting) return;
 
-    // Honeypot check
-    if (honeypotInput && honeypotInput.value.trim() !== '') {
-      formEl.reset();
-      combobox?.reset();
+    // Honeypot check: reject filled honeypot submissions without submitting or displaying a success message
+    const honeypotValue = honeypotInput ? honeypotInput.value.trim() : '';
+    if (honeypotValue !== '') {
       resetTurnstileWidget();
-      setStatus('success', 'Your request has been received.');
+      setStatus('error', 'Spam submission rejected.');
       return;
     }
 
@@ -385,6 +375,7 @@ export function initQuoteForm(formEl) {
       project_details: details,
       drawings_status: drawingsStatus,
       consent: Boolean(consentCheckbox?.checked),
+      website: honeypotValue,
       turnstile_token: turnstileToken,
     };
 

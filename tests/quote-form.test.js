@@ -632,14 +632,19 @@ describe('Frontend Quotation Form Gateway & Mock Protection (`src/components/quo
     };
   }
 
-  it('waits for window.turnstile.ready() before calling window.turnstile.render()', async () => {
+  it('initializes Turnstile directly via window.turnstile.render() without calling window.turnstile.ready() or triggering the async/defer TurnstileError', async () => {
     const originalTurnstile = globalThis.window?.turnstile;
-    let readyCallback = null;
+    const originalDoc = globalThis.document;
     let renderCalled = false;
+    let createdScript = null;
 
+    // Simulate real Cloudflare Turnstile api.js loaded with async/defer:
+    // calling turnstile.ready() throws TurnstileError!
     const mockTurnstile = {
-      ready: vi.fn((fn) => {
-        readyCallback = fn;
+      ready: vi.fn(() => {
+        throw new Error(
+          '[Cloudflare Turnstile] Remove async/defer from the Turnstile api.js script tag before using turnstile.ready().'
+        );
       }),
       render: vi.fn(() => {
         renderCalled = true;
@@ -650,20 +655,43 @@ describe('Frontend Quotation Form Gateway & Mock Protection (`src/components/quo
 
     globalThis.window = globalThis.window || {};
     globalThis.window.location = { pathname: '/', hostname: 'localhost' };
-    globalThis.window.turnstile = mockTurnstile;
+    delete globalThis.window.turnstile;
+
+    globalThis.document = {
+      querySelector: () => null,
+      createElement: (tag) => {
+        if (tag === 'script') {
+          createdScript = {
+            src: '',
+            async: false,
+            onload: null,
+            onerror: null,
+          };
+          return createdScript;
+        }
+        return { id: '', className: '', parentNode: { insertBefore: () => {} } };
+      },
+      head: {
+        appendChild: () => {},
+      },
+    };
 
     const { fakeForm } = createMockQuoteFormElements();
     initQuoteForm(fakeForm);
 
-    expect(mockTurnstile.ready).toHaveBeenCalledTimes(1);
+    expect(createdScript).not.toBeNull();
+    expect(createdScript.async).toBe(true);
     expect(renderCalled).toBe(false);
 
-    // Now fire ready callback
-    expect(readyCallback).not.toBeNull();
-    readyCallback();
+    // Simulate async script load completion
+    globalThis.window.turnstile = mockTurnstile;
+    expect(() => createdScript.onload()).not.toThrow();
+
+    expect(mockTurnstile.ready).not.toHaveBeenCalled();
     expect(renderCalled).toBe(true);
     expect(mockTurnstile.render).toHaveBeenCalledTimes(1);
 
+    globalThis.document = originalDoc;
     if (originalTurnstile) {
       globalThis.window.turnstile = originalTurnstile;
     } else {
@@ -673,12 +701,20 @@ describe('Frontend Quotation Form Gateway & Mock Protection (`src/components/quo
 
   it('renders Turnstile widget exactly once even under repeated render triggers', async () => {
     const originalTurnstile = globalThis.window?.turnstile;
-    let readyCallbacks = [];
+    const originalDoc = globalThis.document;
+    const loadListeners = [];
+
+    const existingScript = {
+      addEventListener: (type, fn) => {
+        if (type === 'load') loadListeners.push(fn);
+      },
+    };
 
     const mockTurnstile = {
-      ready: vi.fn((fn) => {
-        readyCallbacks.push(fn);
-        fn();
+      ready: vi.fn(() => {
+        throw new Error(
+          '[Cloudflare Turnstile] Remove async/defer from the Turnstile api.js script tag before using turnstile.ready().'
+        );
       }),
       render: vi.fn(() => 'single-widget-id'),
       reset: vi.fn(),
@@ -686,22 +722,176 @@ describe('Frontend Quotation Form Gateway & Mock Protection (`src/components/quo
 
     globalThis.window = globalThis.window || {};
     globalThis.window.location = { pathname: '/', hostname: 'localhost' };
-    globalThis.window.turnstile = mockTurnstile;
+    delete globalThis.window.turnstile;
+    globalThis.document = {
+      querySelector: () => existingScript,
+    };
 
     const { fakeForm } = createMockQuoteFormElements();
     initQuoteForm(fakeForm);
 
+    globalThis.window.turnstile = mockTurnstile;
+    loadListeners.forEach((cb) => cb());
+    loadListeners.forEach((cb) => cb());
+
+    expect(mockTurnstile.ready).not.toHaveBeenCalled();
     expect(mockTurnstile.render).toHaveBeenCalledTimes(1);
 
-    // Call ready callbacks again to simulate race condition
-    readyCallbacks.forEach((cb) => cb());
-    expect(mockTurnstile.render).toHaveBeenCalledTimes(1);
-
+    globalThis.document = originalDoc;
     if (originalTurnstile) {
       globalThis.window.turnstile = originalTurnstile;
     } else {
       delete globalThis.window.turnstile;
     }
+  });
+
+  it('rejects filled honeypot on the frontend without calling /api/quote or displaying a success message', async () => {
+    const originalFetch = globalThis.fetch;
+    const originalTurnstile = globalThis.window?.turnstile;
+    let capturedOptions = null;
+
+    const mockTurnstile = {
+      render: vi.fn((container, options) => {
+        capturedOptions = options;
+        return 'widget-hp-id';
+      }),
+      reset: vi.fn(),
+    };
+
+    globalThis.window = globalThis.window || {};
+    globalThis.window.location = { pathname: '/', hostname: 'localhost' };
+    globalThis.window.turnstile = mockTurnstile;
+
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true }),
+    });
+    globalThis.fetch = fetchSpy;
+
+    const { fakeForm, fields, statusEl, successBridgeEl, formFieldsEl, comboInputListeners, submitHandlers } =
+      createMockQuoteFormElements();
+    initQuoteForm(fakeForm);
+    comboInputListeners.focusout?.({ relatedTarget: null });
+    capturedOptions.callback('valid-turnstile-token');
+
+    // Fill the honeypot field with an arbitrary value
+    fields['#quote-website'].value = 'arbitrary-bot-input';
+
+    await submitHandlers[0]({ preventDefault: () => {} });
+
+    // Must be rejected: never calls fetch, never displays success status or success bridge
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(statusEl.dataset.state).toBe('error');
+    expect(statusEl.textContent).not.toMatch(/received/i);
+    expect(statusEl.textContent).toMatch(/rejected/i);
+    expect(successBridgeEl.hidden).toBe(true);
+    expect(successBridgeEl.innerHTML).toBe('');
+    expect(formFieldsEl.hidden).toBe(false);
+    expect(mockTurnstile.reset).toHaveBeenCalledWith('widget-hp-id');
+
+    globalThis.fetch = originalFetch;
+    if (originalTurnstile) {
+      globalThis.window.turnstile = originalTurnstile;
+    } else {
+      delete globalThis.window.turnstile;
+    }
+  });
+
+  it('proves empty honeypot + valid Turnstile token proceeds, invalid Turnstile token is rejected, and success message displays ONLY after server confirmation', async () => {
+    const originalFetch = globalThis.fetch;
+    const originalTurnstile = globalThis.window?.turnstile;
+    let capturedOptions = null;
+
+    const mockTurnstile = {
+      render: vi.fn((container, options) => {
+        capturedOptions = options;
+        return 'widget-flow-id';
+      }),
+      reset: vi.fn(),
+    };
+
+    globalThis.window = globalThis.window || {};
+    globalThis.window.location = { pathname: '/', hostname: 'localhost' };
+    globalThis.window.turnstile = mockTurnstile;
+
+    const { fakeForm, fields, statusEl, successBridgeEl, formFieldsEl, comboInputListeners, submitHandlers } =
+      createMockQuoteFormElements();
+    initQuoteForm(fakeForm);
+    comboInputListeners.focusout?.({ relatedTarget: null });
+
+    // Ensure honeypot is empty
+    expect(fields['#quote-website'].value).toBe('');
+
+    // 1. Server rejects invalid Turnstile token (403) -> frontend shows error, resets Turnstile, never shows success
+    capturedOptions.callback('invalid-turnstile-token');
+    globalThis.fetch = vi.fn().mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      json: async () => ({ ok: false, error: 'Human verification failed. Please refresh and try again.' }),
+    });
+
+    await submitHandlers[0]({ preventDefault: () => {} });
+    expect(statusEl.dataset.state).toBe('error');
+    expect(statusEl.textContent).toMatch(/Human verification failed/i);
+    expect(successBridgeEl.hidden).toBe(true);
+    expect(successBridgeEl.innerHTML).toBe('');
+    expect(formFieldsEl.hidden).toBe(false);
+    expect(mockTurnstile.reset).toHaveBeenCalledWith('widget-flow-id');
+
+    // 2. Valid Turnstile token + empty honeypot -> verify success is NOT shown before server resolves
+    capturedOptions.callback('valid-turnstile-token-confirmed');
+    let resolveServerResponse;
+    const pendingFetchPromise = new Promise((resolve) => {
+      resolveServerResponse = resolve;
+    });
+    const fetchSpy = vi.fn().mockReturnValueOnce(pendingFetchPromise);
+    globalThis.fetch = fetchSpy;
+
+    const submitPromise = submitHandlers[0]({ preventDefault: () => {} });
+
+    // While server request is in-flight, status is pending and success bridge MUST still be hidden
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const sentPayload = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    expect(sentPayload.website).toBe('');
+    expect(sentPayload.turnstile_token).toBe('valid-turnstile-token-confirmed');
+    expect(statusEl.dataset.state).toBe('pending');
+    expect(successBridgeEl.hidden).toBe(true);
+    expect(successBridgeEl.innerHTML).toBe('');
+    expect(formFieldsEl.hidden).toBe(false);
+
+    // Resolve server response with confirmed database write
+    resolveServerResponse({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true }),
+    });
+    await submitPromise;
+
+    // Only NOW after server confirmation is the success view displayed
+    expect(successBridgeEl.hidden).toBe(false);
+    expect(successBridgeEl.innerHTML).toContain('Quotation Request Received');
+    expect(formFieldsEl.hidden).toBe(true);
+
+    globalThis.fetch = originalFetch;
+    if (originalTurnstile) {
+      globalThis.window.turnstile = originalTurnstile;
+    } else {
+      delete globalThis.window.turnstile;
+    }
+  });
+
+  it('keeps the honeypot field invisible and non-focusable in index.html without CSP-blocked inline styles', () => {
+    const indexHtml = readFileSync(join(ROOT, 'index.html'), 'utf8');
+    const styleCss = readFileSync(join(ROOT, 'src', 'style.css'), 'utf8');
+
+    expect(indexHtml).toContain('class="form__honeypot"');
+    expect(indexHtml).toContain('aria-hidden="true"');
+    expect(indexHtml).toContain('hidden inert');
+    expect(indexHtml).toContain('id="quote-website" name="website" tabindex="-1" autocomplete="off"');
+    expect(indexHtml).not.toContain('style="display:none;"');
+    expect(styleCss).toContain('.form__honeypot');
+    expect(styleCss).toContain('display: none !important;');
   });
 
   it('handles expired-callback by clearing token, updating status, and invoking reset', async () => {

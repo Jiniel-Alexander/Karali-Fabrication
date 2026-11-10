@@ -22,7 +22,10 @@ export function validateQuotePayload(payload = {}) {
   const errors = {};
 
   // 1. Anti-spam honeypot
-  if (payload.website || payload.hp_field) {
+  const hasHoneypot =
+    (typeof payload.website === 'string' ? payload.website.trim() !== '' : Boolean(payload.website)) ||
+    (typeof payload.hp_field === 'string' ? payload.hp_field.trim() !== '' : Boolean(payload.hp_field));
+  if (hasHoneypot) {
     return {
       valid: false,
       isSpam: true,
