@@ -410,7 +410,73 @@ test.describe('Karali Fabrication — Homepage, Dedicated Service Pages & Core R
     await expect(status).toHaveAttribute('data-state', 'error');
     await expect(status).toContainText('Please choose your locality from the list.');
 
-    // 2. Typing a valid prefix filters the listbox case-insensitively
+    // 2. Verify search queries ('and', 'band', 'thane', 'vashi') render inline without flex space-between splitting
+    const searchCases = [
+      { query: 'and', expectedTop: ['Andheri East', 'Andheri West'] },
+      { query: 'band', expectedTop: ['Bandra East', 'Bandra West'] },
+      { query: 'thane', expectedTop: ['Thane East', 'Thane West'] },
+      { query: 'vashi', expectedTop: ['Vashi'] },
+    ];
+
+    for (const { query, expectedTop } of searchCases) {
+      await input.fill(query);
+      await expect(listbox).toBeVisible();
+      const options = listbox.locator('[role="option"]');
+
+      for (let i = 0; i < expectedTop.length; i++) {
+        const opt = options.nth(i);
+        await expect(opt).toHaveText(expectedTop[i]);
+
+        const alignment = await opt.evaluate((optionEl) => {
+          const label = optionEl.querySelector('.combobox__option-label');
+          const mark = label ? label.querySelector('mark') : null;
+          if (!label || !mark) return { valid: false, reason: 'missing label or mark' };
+
+          const optionRect = optionEl.getBoundingClientRect();
+          const labelRect = label.getBoundingClientRect();
+          const markRect = mark.getBoundingClientRect();
+
+          // Check contiguous horizontal spacing across all child nodes of .combobox__option-label
+          let prevRight = null;
+          let maxGap = 0;
+          for (const node of label.childNodes) {
+            let rect;
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              rect = node.getBoundingClientRect();
+            } else if (node.nodeType === Node.TEXT_NODE && node.textContent.length > 0) {
+              const range = document.createRange();
+              range.selectNodeContents(node);
+              rect = range.getBoundingClientRect();
+            }
+            if (rect && rect.width > 0) {
+              if (prevRight !== null) {
+                maxGap = Math.max(maxGap, Math.abs(rect.left - prevRight));
+              }
+              prevRight = rect.right;
+            }
+          }
+
+          return {
+            valid: true,
+            directElementChildren: optionEl.children.length,
+            markText: mark.textContent,
+            labelWidth: labelRect.width,
+            optionWidth: optionRect.width,
+            maxGap,
+            sameLine: Math.abs(markRect.top - labelRect.top) <= 4,
+          };
+        });
+
+        expect(alignment.valid).toBe(true);
+        expect(alignment.directElementChildren).toBe(1);
+        expect(alignment.markText.toLowerCase()).toBe(query);
+        expect(alignment.maxGap).toBeLessThanOrEqual(2);
+        expect(alignment.sameLine).toBe(true);
+        expect(alignment.labelWidth).toBeLessThan(alignment.optionWidth * 0.85);
+      }
+    }
+
+    // 3. Typing a valid prefix filters the listbox case-insensitively and Enter selects the active option
     await input.fill('andheri');
     await expect(listbox).toBeVisible();
     const options = listbox.locator('[role="option"]');
@@ -418,7 +484,6 @@ test.describe('Karali Fabrication — Homepage, Dedicated Service Pages & Core R
     await expect(options.nth(0)).toHaveText('Andheri East');
     await expect(options.nth(1)).toHaveText('Andheri West');
 
-    // 3. Keyboard Enter selects the active option
     await input.press('Enter');
     await expect(input).toHaveValue('Andheri East');
     await expect(input).not.toHaveAttribute('aria-invalid', 'true');

@@ -85,3 +85,25 @@ describe('findExactLocality', () => {
     expect(findExactLocality('')).toBeNull();
   });
 });
+
+describe('combobox highlighted option rendering & CSS alignment', () => {
+  const comboboxSrc = readFileSync(join(import.meta.dirname, '..', 'src', 'components', 'combobox.js'), 'utf8');
+  const styleCss = readFileSync(join(import.meta.dirname, '..', 'src', 'style.css'), 'utf8');
+
+  it('wraps highlighted and remaining locality substrings in a single inline .combobox__option-label span', () => {
+    expect(comboboxSrc).toContain("el('span', 'combobox__option-label')");
+    expect(styleCss).toMatch(/\.combobox__option\s*\{[^}]*justify-content:\s*flex-start;/);
+    expect(styleCss).not.toMatch(/\.combobox__option\s*\{[^}]*justify-content:\s*space-between;/);
+    expect(styleCss).toMatch(/\.combobox__option-label\s*\{[^}]*white-space:\s*nowrap;/);
+    expect(styleCss).toMatch(/\.combobox__option\.is-chosen::after\s*\{[^}]*margin-left:\s*auto;/);
+  });
+
+  it('returns the expected top locality matches for "and", "band", "thane", and "vashi"', () => {
+    const names = (q) => filterLocalities(q).flatMap((g) => g.localities);
+
+    expect(names('and').slice(0, 2)).toEqual(['Andheri East', 'Andheri West']);
+    expect(names('band')).toEqual(['Bandra East', 'Bandra West']);
+    expect(names('thane').slice(0, 2)).toEqual(['Thane East', 'Thane West']);
+    expect(names('vashi')).toEqual(['Vashi']);
+  });
+});

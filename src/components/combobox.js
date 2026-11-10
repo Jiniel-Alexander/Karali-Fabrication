@@ -22,15 +22,24 @@ function el(tag, className) {
 }
 
 function appendHighlighted(target, text, query) {
+  const label = el('span', 'combobox__option-label');
   const q = query.trim().toLowerCase();
   const idx = q ? text.toLowerCase().indexOf(q) : -1;
   if (idx < 0) {
-    target.append(text);
+    label.textContent = text;
+    target.append(label);
     return;
+  }
+  if (idx > 0) {
+    label.append(text.slice(0, idx));
   }
   const mark = el('mark');
   mark.textContent = text.slice(idx, idx + q.length);
-  target.append(text.slice(0, idx), mark, text.slice(idx + q.length));
+  label.append(mark);
+  if (idx + q.length < text.length) {
+    label.append(text.slice(idx + q.length));
+  }
+  target.append(label);
 }
 
 /**

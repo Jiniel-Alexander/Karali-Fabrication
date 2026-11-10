@@ -1056,8 +1056,7 @@ p {
 .combobox__option {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  justify-content: flex-start;
   min-height: 44px;
   margin-top: 2px;
   padding: 0.55rem 0.75rem;
@@ -1065,6 +1064,14 @@ p {
   cursor: pointer;
   color: var(--ink);
   transition: background-color 0.12s;
+}
+
+.combobox__option-label {
+  display: inline;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .combobox__option:hover {
@@ -1078,8 +1085,10 @@ p {
 
 .combobox__option.is-chosen::after {
   content: '';
+  flex: none;
   width: 14px;
   height: 8px;
+  margin-left: auto;
   margin-right: 4px;
   border-left: 2.5px solid var(--orange-600);
   border-bottom: 2.5px solid var(--orange-600);
@@ -1093,8 +1102,8 @@ p {
 .combobox__option mark {
   background: rgb(245 166 35 / 0.38);
   color: inherit;
-  border-radius: 3px;
-  padding: 0 1px;
+  border-radius: 2px;
+  padding: 0;
 }
 
 .combobox__option.is-active mark {
