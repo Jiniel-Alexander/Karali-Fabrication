@@ -1048,6 +1048,40 @@ describe('Frontend Quotation Form Gateway & Mock Protection (`src/components/quo
       delete globalThis.window.turnstile;
     }
   });
+
+  it('targets #quote-request-card from header and mobile Request a Quote CTAs while preserving other navigation anchors and unique IDs', () => {
+    const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
+    const css = readFileSync(join(ROOT, 'src', 'style.css'), 'utf8');
+
+    // Header and mobile CTA buttons point directly to the quotation form container
+    expect(html).toContain('<a class="btn btn--header-quote" href="#quote-request-card" id="header-quote-link">Request a Quote</a>');
+    expect(html).toContain('<a class="btn btn--primary" href="#quote-request-card" id="mobile-quote-link">Request a Quote</a>');
+
+    // Quotation form container exists with expected headings and form element
+    expect(html).toContain('<div class="quote-card" id="quote-request-card">');
+    expect(html).toContain('Project Specifications &amp; Estimation');
+    expect(html).toContain('Request an Engineering Quotation');
+    expect(html).toContain('<form id="quote-form"');
+
+    // Existing navigation links and #enquiry targets remain intact
+    expect(html).toContain('<a class="site-nav__link" href="#services">Services</a>');
+    expect(html).toContain('<a class="site-nav__link" href="/catalogue/">Catalogue</a>');
+    expect(html).toContain('<a class="site-nav__link" href="#capabilities">Capabilities</a>');
+    expect(html).toContain('<a class="site-nav__link" href="#projects">Gallery</a>');
+    expect(html).toContain('<a class="site-nav__link" href="#service-areas">Service Area</a>');
+    expect(html).toContain('<a class="site-nav__link" href="#enquiry">Contact</a>');
+    expect(html).toContain('href="#enquiry" id="hero-quote-button"');
+
+    // Ensure no duplicate IDs exist anywhere in index.html
+    const idMatches = [...html.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]);
+    const uniqueIds = new Set(idMatches);
+    expect(uniqueIds.size).toBe(idMatches.length);
+
+    // Smooth scrolling and sticky-header scroll offset rules in CSS
+    expect(css).toContain('scroll-behavior: smooth;');
+    expect(css).toContain('scroll-padding-top: 84px;');
+    expect(css).toMatch(/\.quote-card\s*\{[^}]*scroll-margin-top:\s*1rem;/);
+  });
 });
 
 describe('Database Migration Safety (`supabase/migrations/20261027000000_create_quote_requests.sql`)', () => {

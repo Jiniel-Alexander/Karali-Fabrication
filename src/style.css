@@ -2332,6 +2332,7 @@ p {
   padding: clamp(1.5rem, 3.5vw, 2.5rem);
   box-shadow: var(--shadow);
   margin-top: 1.5rem;
+  scroll-margin-top: 1rem;
 }
 
 .quote-form {

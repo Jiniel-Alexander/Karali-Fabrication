@@ -255,11 +255,29 @@ test.describe('Karali Fabrication — Homepage, Dedicated Service Pages & Core R
     await expect(heroQuoteBtn).toBeVisible();
     await expect(heroQuoteBtn).toHaveAttribute('href', '#enquiry');
 
+    const headerQuoteLink = page.locator('#header-quote-link');
+    await expect(headerQuoteLink).toHaveAttribute('href', '#quote-request-card');
+
+    const mobileQuoteLink = page.locator('#mobile-quote-link');
+    await expect(mobileQuoteLink).toHaveAttribute('href', '#quote-request-card');
+
     const enquiryCallBtn = page.locator('#enquiry-call-button');
     await expect(enquiryCallBtn).toHaveAttribute('href', 'tel:+917977591792');
 
     const enquiryWhatsappBtn = page.locator('#enquiry-whatsapp-button');
     await expect(enquiryWhatsappBtn).toHaveAttribute('href', /https:\/\/wa\.me\/917977591792/);
+
+    // Verify no duplicate element IDs exist in the DOM
+    const duplicateIds = await page.evaluate(() => {
+      const seen = new Set();
+      const duplicates = [];
+      for (const el of document.querySelectorAll('[id]')) {
+        if (seen.has(el.id)) duplicates.push(el.id);
+        seen.add(el.id);
+      }
+      return duplicates;
+    });
+    expect(duplicateIds).toEqual([]);
   });
 
   test('supports responsive navigation (desktop nav bar on wide screens, toggle drawer on mobile)', async ({
@@ -286,10 +304,41 @@ test.describe('Karali Fabrication — Homepage, Dedicated Service Pages & Core R
       await page.keyboard.press('Escape');
       await expect(mobileToggle).toHaveAttribute('aria-expanded', 'false');
       await expect(mobilePanel).toBeHidden();
+
+      // Open mobile drawer and click "Request a Quote" CTA
+      await mobileToggle.click();
+      await expect(mobilePanel).toBeVisible();
+      await page.locator('#mobile-quote-link').click();
+      await expect(mobilePanel).toBeHidden();
+      await expect(mobileToggle).toHaveAttribute('aria-expanded', 'false');
     } else {
       await expect(desktopNav).toBeVisible();
       await expect(mobileToggle).toBeHidden();
+
+      // Click header "Request a Quote" CTA
+      await page.locator('#header-quote-link').click();
     }
+
+    // Verify navigation landed on #quote-request-card with heading visible below sticky header
+    await expect(page).toHaveURL(/#quote-request-card$/);
+    await expect
+      .poll(async () => {
+        return page.evaluate(() => {
+          const headerRect = document.getElementById('site-header').getBoundingClientRect();
+          const cardRect = document.getElementById('quote-request-card').getBoundingClientRect();
+          const headingRect = document
+            .querySelector('#quote-request-card .section__title')
+            .getBoundingClientRect();
+          const bannerRect = document.querySelector('.enquiry-banner').getBoundingClientRect();
+          return (
+            cardRect.top >= headerRect.bottom &&
+            headingRect.top >= headerRect.bottom &&
+            headingRect.bottom <= window.innerHeight &&
+            bannerRect.top < headerRect.bottom
+          );
+        });
+      })
+      .toBe(true);
   });
 
   test('maintains responsive layout with zero horizontal overflow on current viewport', async ({ page }) => {
