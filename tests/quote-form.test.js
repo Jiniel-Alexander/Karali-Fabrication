@@ -537,6 +537,327 @@ describe('Frontend Quotation Form Gateway & Mock Protection (`src/components/quo
       delete globalThis.window.turnstile;
     }
   });
+
+  function createMockQuoteFormElements(siteKey = '0x4AAAAAAF6FHuSM5ZiycyyY') {
+    const submitHandlers = [];
+    const statusEl = { dataset: {}, textContent: '', hidden: true };
+    const successBridgeEl = { hidden: true, innerHTML: '', querySelector: () => null };
+    const formFieldsEl = { hidden: false };
+
+    const makeField = (value) => ({
+      value,
+      disabled: false,
+      parentElement: { querySelector: () => null },
+      addEventListener: () => {},
+      setAttribute: () => {},
+      removeAttribute: () => {},
+      focus: () => {},
+    });
+
+    const comboInputListeners = {};
+    const comboInput = {
+      value: 'Powai',
+      disabled: false,
+      addEventListener: (type, fn) => {
+        comboInputListeners[type] = fn;
+      },
+      setAttribute: () => {},
+      removeAttribute: () => {},
+      focus: () => {},
+    };
+
+    const turnstileDiv = {
+      id: 'turnstile-widget',
+      parentNode: { insertBefore: () => {} },
+    };
+
+    const fields = {
+      '#quote-submit': {
+        disabled: false,
+        setAttribute: () => {},
+        querySelector: () => ({ textContent: '' }),
+        parentNode: { insertBefore: () => {} },
+      },
+      '#quote-status': statusEl,
+      '#quote-success-bridge': successBridgeEl,
+      '#quote-form-fields': formFieldsEl,
+      '#quote-locality-combobox': {
+        id: 'quote-locality-combobox',
+        classList: { toggle: () => {} },
+        contains: () => false,
+        addEventListener: (type, fn) => {
+          if (type === 'focusout') comboInputListeners.focusout = fn;
+        },
+        setAttribute: () => {},
+        removeAttribute: () => {},
+        parentElement: { querySelector: () => null },
+        querySelector: (sel) => {
+          if (sel === '[data-combobox-input]') return comboInput;
+          return { id: 'list', hidden: true, replaceChildren: () => {}, append: () => {}, addEventListener: () => {} };
+        },
+      },
+      '#quote-name': makeField('Apex Structural Contractors'),
+      '#quote-phone': makeField('9876543210'),
+      '#quote-service': makeField('structural-steel-fabrication'),
+      '#quote-details': makeField('Heavy portal frames industrial fabrication in Powai.'),
+      '#quote-website': makeField(''),
+      '#quote-consent': {
+        checked: true,
+        addEventListener: () => {},
+        removeAttribute: () => {},
+        parentElement: { querySelector: () => null },
+      },
+      'input[name="drawings_status"]:checked': { value: 'yes' },
+      '#turnstile-widget': turnstileDiv,
+    };
+
+    const fakeForm = {
+      dataset: siteKey ? { sitekey: siteKey } : {},
+      querySelector: (sel) => fields[sel] ?? null,
+      addEventListener: (type, fn) => {
+        if (type === 'submit') submitHandlers.push(fn);
+      },
+      setAttribute: () => {},
+      reset: () => {},
+    };
+
+    return {
+      fakeForm,
+      fields,
+      statusEl,
+      successBridgeEl,
+      formFieldsEl,
+      comboInputListeners,
+      submitHandlers,
+    };
+  }
+
+  it('waits for window.turnstile.ready() before calling window.turnstile.render()', async () => {
+    const originalTurnstile = globalThis.window?.turnstile;
+    let readyCallback = null;
+    let renderCalled = false;
+
+    const mockTurnstile = {
+      ready: vi.fn((fn) => {
+        readyCallback = fn;
+      }),
+      render: vi.fn(() => {
+        renderCalled = true;
+        return 'mock-widget-id';
+      }),
+      reset: vi.fn(),
+    };
+
+    globalThis.window = globalThis.window || {};
+    globalThis.window.location = { pathname: '/', hostname: 'localhost' };
+    globalThis.window.turnstile = mockTurnstile;
+
+    const { fakeForm } = createMockQuoteFormElements();
+    initQuoteForm(fakeForm);
+
+    expect(mockTurnstile.ready).toHaveBeenCalledTimes(1);
+    expect(renderCalled).toBe(false);
+
+    // Now fire ready callback
+    expect(readyCallback).not.toBeNull();
+    readyCallback();
+    expect(renderCalled).toBe(true);
+    expect(mockTurnstile.render).toHaveBeenCalledTimes(1);
+
+    if (originalTurnstile) {
+      globalThis.window.turnstile = originalTurnstile;
+    } else {
+      delete globalThis.window.turnstile;
+    }
+  });
+
+  it('renders Turnstile widget exactly once even under repeated render triggers', async () => {
+    const originalTurnstile = globalThis.window?.turnstile;
+    let readyCallbacks = [];
+
+    const mockTurnstile = {
+      ready: vi.fn((fn) => {
+        readyCallbacks.push(fn);
+        fn();
+      }),
+      render: vi.fn(() => 'single-widget-id'),
+      reset: vi.fn(),
+    };
+
+    globalThis.window = globalThis.window || {};
+    globalThis.window.location = { pathname: '/', hostname: 'localhost' };
+    globalThis.window.turnstile = mockTurnstile;
+
+    const { fakeForm } = createMockQuoteFormElements();
+    initQuoteForm(fakeForm);
+
+    expect(mockTurnstile.render).toHaveBeenCalledTimes(1);
+
+    // Call ready callbacks again to simulate race condition
+    readyCallbacks.forEach((cb) => cb());
+    expect(mockTurnstile.render).toHaveBeenCalledTimes(1);
+
+    if (originalTurnstile) {
+      globalThis.window.turnstile = originalTurnstile;
+    } else {
+      delete globalThis.window.turnstile;
+    }
+  });
+
+  it('handles expired-callback by clearing token, updating status, and invoking reset', async () => {
+    const originalFetch = globalThis.fetch;
+    const originalTurnstile = globalThis.window?.turnstile;
+    let capturedOptions = null;
+
+    const mockTurnstile = {
+      ready: vi.fn((fn) => fn()),
+      render: vi.fn((container, options) => {
+        capturedOptions = options;
+        return 'widget-exp-id';
+      }),
+      reset: vi.fn(),
+    };
+
+    globalThis.window = globalThis.window || {};
+    globalThis.window.location = { pathname: '/', hostname: 'localhost' };
+    globalThis.window.turnstile = mockTurnstile;
+
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true }),
+    });
+    globalThis.fetch = fetchSpy;
+
+    const { fakeForm, statusEl, comboInputListeners, submitHandlers } = createMockQuoteFormElements();
+    initQuoteForm(fakeForm);
+    comboInputListeners.focusout?.({ relatedTarget: null });
+
+    // Store token via callback
+    capturedOptions.callback('valid-initial-token');
+
+    // Trigger expiration
+    capturedOptions['expired-callback']();
+    expect(statusEl.dataset.state).toBe('error');
+    expect(statusEl.textContent).toMatch(/expired/i);
+    expect(mockTurnstile.reset).toHaveBeenCalledWith('widget-exp-id');
+
+    // Subsequent submit must be blocked
+    await submitHandlers[0]({ preventDefault: () => {} });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(statusEl.textContent).toMatch(/human verification challenge/i);
+
+    globalThis.fetch = originalFetch;
+    if (originalTurnstile) {
+      globalThis.window.turnstile = originalTurnstile;
+    } else {
+      delete globalThis.window.turnstile;
+    }
+  });
+
+  it('handles error-callback and timeout-callback by invalidating token and preventing submission', async () => {
+    const originalFetch = globalThis.fetch;
+    const originalTurnstile = globalThis.window?.turnstile;
+    let capturedOptions = null;
+
+    const mockTurnstile = {
+      ready: vi.fn((fn) => fn()),
+      render: vi.fn((container, options) => {
+        capturedOptions = options;
+        return 'widget-cb-id';
+      }),
+      reset: vi.fn(),
+    };
+
+    globalThis.window = globalThis.window || {};
+    globalThis.window.location = { pathname: '/', hostname: 'localhost' };
+    globalThis.window.turnstile = mockTurnstile;
+
+    const fetchSpy = vi.fn();
+    globalThis.fetch = fetchSpy;
+
+    const { fakeForm, comboInputListeners, submitHandlers } = createMockQuoteFormElements();
+    initQuoteForm(fakeForm);
+    comboInputListeners.focusout?.({ relatedTarget: null });
+
+    // 1. Success callback stores token
+    capturedOptions.callback('temporary-token');
+
+    // 2. Timeout callback clears token
+    capturedOptions['timeout-callback']();
+    await submitHandlers[0]({ preventDefault: () => {} });
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    // 3. Success callback stores token again
+    capturedOptions.callback('temporary-token-2');
+
+    // 4. Error callback clears token
+    capturedOptions['error-callback']('mock-error-code');
+    await submitHandlers[0]({ preventDefault: () => {} });
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    globalThis.fetch = originalFetch;
+    if (originalTurnstile) {
+      globalThis.window.turnstile = originalTurnstile;
+    } else {
+      delete globalThis.window.turnstile;
+    }
+  });
+
+  it('handles script load failure (onerror) by displaying error and blocking submission', async () => {
+    const originalDoc = globalThis.document;
+    const originalTurnstile = globalThis.window?.turnstile;
+    let createdScript = null;
+
+    globalThis.window = globalThis.window || {};
+    delete globalThis.window.turnstile;
+    globalThis.window.location = { pathname: '/', hostname: 'localhost' };
+
+    globalThis.document = {
+      querySelector: () => null,
+      createElement: (tag) => {
+        if (tag === 'script') {
+          createdScript = {
+            src: '',
+            async: false,
+            onload: null,
+            onerror: null,
+          };
+          return createdScript;
+        }
+        return { id: '', className: '', parentNode: { insertBefore: () => {} } };
+      },
+      head: {
+        appendChild: () => {},
+      },
+    };
+
+    const fetchSpy = vi.fn();
+    globalThis.fetch = fetchSpy;
+
+    const { fakeForm, statusEl, comboInputListeners, submitHandlers } = createMockQuoteFormElements();
+    initQuoteForm(fakeForm);
+    comboInputListeners.focusout?.({ relatedTarget: null });
+
+    expect(createdScript).not.toBeNull();
+    expect(typeof createdScript.onerror).toBe('function');
+
+    // Fire script.onerror
+    createdScript.onerror(new Error('Network error loading script'));
+    expect(statusEl.dataset.state).toBe('error');
+    expect(statusEl.textContent).toMatch(/could not be loaded/i);
+
+    // Attempt submission -> strictly blocked
+    await submitHandlers[0]({ preventDefault: () => {} });
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    globalThis.document = originalDoc;
+    if (originalTurnstile) {
+      globalThis.window.turnstile = originalTurnstile;
+    } else {
+      delete globalThis.window.turnstile;
+    }
+  });
 });
 
 describe('Database Migration Safety (`supabase/migrations/20261027000000_create_quote_requests.sql`)', () => {

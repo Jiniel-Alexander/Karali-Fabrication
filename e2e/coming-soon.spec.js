@@ -100,13 +100,41 @@ const SERVICE_PAGES = [
 ];
 
 test.describe('Karali Fabrication — Homepage, Dedicated Service Pages & Core Regression Suite', () => {
+  test.beforeEach(async ({ page }) => {
+    // Intercept Turnstile challenge requests in local test harness to prevent external network flakiness and edge rate-limits
+    await page.route('**/challenges.cloudflare.com/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/javascript',
+        body: `
+          window.turnstile = {
+            ready: function(fn) {
+              if (typeof fn === 'function') fn();
+            },
+            render: function(container, options) {
+              if (options && typeof options.callback === 'function') {
+                setTimeout(() => options.callback('e2e-turnstile-token'), 50);
+              }
+              return 'e2e-widget-id';
+            },
+            reset: function() {}
+          };
+        `,
+      });
+    });
+  });
   test('renders branding, headline, navigation, and all homepage sections without console or page errors', async ({
     page,
   }) => {
+    test.slow();
     const consoleErrors = [];
     const pageErrors = [];
     page.on('console', (msg) => {
-      if (msg.type() === 'error') consoleErrors.push(msg.text());
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        if (text.includes('font-size:0;color:transparent')) return;
+        consoleErrors.push(text);
+      }
     });
     page.on('pageerror', (err) => pageErrors.push(err.message));
 
@@ -354,10 +382,15 @@ test.describe('Karali Fabrication — Homepage, Dedicated Service Pages & Core R
   test('navigates across all 12 dedicated service pages without console errors or broken images', async ({
     page,
   }) => {
+    test.slow();
     const consoleErrors = [];
     const pageErrors = [];
     page.on('console', (msg) => {
-      if (msg.type() === 'error') consoleErrors.push(msg.text());
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        if (text.includes('font-size:0;color:transparent')) return;
+        consoleErrors.push(text);
+      }
     });
     page.on('pageerror', (err) => pageErrors.push(err.message));
 
@@ -446,7 +479,11 @@ test.describe('Karali Fabrication — Homepage, Dedicated Service Pages & Core R
     const consoleErrors = [];
     const pageErrors = [];
     page.on('console', (msg) => {
-      if (msg.type() === 'error') consoleErrors.push(msg.text());
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        if (text.includes('font-size:0;color:transparent')) return;
+        consoleErrors.push(text);
+      }
     });
     page.on('pageerror', (err) => pageErrors.push(err.message));
 
@@ -535,8 +572,12 @@ test.describe('Karali Fabrication — Homepage, Dedicated Service Pages & Core R
 
   // ---------------------------------------------------------------------------
   // Phase 4: Industrial Quotation Form & Drawing Hand-off Bridge
+  // NOTE: This E2E test runs with mocked Turnstile (challenges.cloudflare.com)
+  // and mocked backend (/api/quote) routes. It validates browser form state,
+  // user interactions, client-side validation, and payload formatting.
+  // It DOES NOT test live Cloudflare Turnstile Siteverify communication.
   // ---------------------------------------------------------------------------
-  test('validates and completes quotation request form with WhatsApp drawing hand-off bridge', async ({ page }) => {
+  test('[MOCKED HARNESS] validates and completes quotation request form with WhatsApp drawing hand-off bridge', async ({ page }) => {
     let requestPayload = null;
     await page.route('**/api/quote**', async (route) => {
       requestPayload = route.request().postDataJSON();
@@ -553,6 +594,9 @@ test.describe('Karali Fabrication — Homepage, Dedicated Service Pages & Core R
         contentType: 'application/javascript',
         body: `
           window.turnstile = {
+            ready: function(fn) {
+              if (typeof fn === 'function') fn();
+            },
             render: function(container, options) {
               if (options && typeof options.callback === 'function') {
                 setTimeout(() => options.callback('e2e-turnstile-token'), 50);

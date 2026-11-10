@@ -832,4 +832,83 @@ describe('Cloudflare Pages Quote Endpoint (`functions/api/quote.js`)', () => {
     globalThis.fetch = vi.fn().mockRejectedValueOnce(new Error('network down'));
     expect(await verifyTurnstileToken('tok', 'sec')).toBeNull();
   });
+
+  it('explicitly rejects invalid, expired, and replayed Turnstile tokens with HTTP 403', async () => {
+    const fetchCalls = [];
+    globalThis.fetch = vi.fn(async (url, init) => {
+      fetchCalls.push({ url: String(url), init });
+      if (String(url).includes('turnstile')) {
+        const bodyStr = String(init?.body || '');
+        if (bodyStr.includes('response=expired-tok') || bodyStr.includes('response=replayed-tok')) {
+          return {
+            ok: true,
+            json: async () => ({
+              success: false,
+              'error-codes': ['timeout-or-duplicate'],
+            }),
+          };
+        }
+        if (bodyStr.includes('response=invalid-tok')) {
+          return {
+            ok: true,
+            json: async () => ({
+              success: false,
+              'error-codes': ['invalid-input-response'],
+            }),
+          };
+        }
+      }
+      return { ok: true, status: 201, text: async () => '' };
+    });
+
+    // 1. Expired token -> 403
+    const reqExpired = createMockRequest({
+      method: 'POST',
+      headers: { Origin: 'https://karalifabrication.in' },
+      body: JSON.stringify({ ...VALID_PAYLOAD, turnstile_token: 'expired-tok' }),
+    });
+    const resExpired = await handleQuotePost({ request: reqExpired, env: PROD_ENV });
+    expect(resExpired.status).toBe(403);
+    const jsonExpired = await resExpired.json();
+    expect(jsonExpired.ok).toBe(false);
+    expect(jsonExpired.error).toMatch(/Human verification failed/i);
+
+    // 2. Replayed token -> 403
+    const reqReplayed = createMockRequest({
+      method: 'POST',
+      headers: { Origin: 'https://karalifabrication.in' },
+      body: JSON.stringify({ ...VALID_PAYLOAD, turnstile_token: 'replayed-tok' }),
+    });
+    const resReplayed = await handleQuotePost({ request: reqReplayed, env: PROD_ENV });
+    expect(resReplayed.status).toBe(403);
+    const jsonReplayed = await resReplayed.json();
+    expect(jsonReplayed.ok).toBe(false);
+    expect(jsonReplayed.error).toMatch(/Human verification failed/i);
+
+    // 3. Invalid token -> 403
+    const reqInvalid = createMockRequest({
+      method: 'POST',
+      headers: { Origin: 'https://karalifabrication.in' },
+      body: JSON.stringify({ ...VALID_PAYLOAD, turnstile_token: 'invalid-tok' }),
+    });
+    const resInvalid = await handleQuotePost({ request: reqInvalid, env: PROD_ENV });
+    expect(resInvalid.status).toBe(403);
+    const jsonInvalid = await resInvalid.json();
+    expect(jsonInvalid.ok).toBe(false);
+    expect(jsonInvalid.error).toMatch(/Human verification failed/i);
+
+    // 4. Missing token -> 403 (does not touch Siteverify)
+    fetchCalls.length = 0;
+    const reqMissing = createMockRequest({
+      method: 'POST',
+      headers: { Origin: 'https://karalifabrication.in' },
+      body: JSON.stringify({ ...VALID_PAYLOAD, turnstile_token: '' }),
+    });
+    const resMissing = await handleQuotePost({ request: reqMissing, env: PROD_ENV });
+    expect(resMissing.status).toBe(403);
+    const jsonMissing = await resMissing.json();
+    expect(jsonMissing.ok).toBe(false);
+    expect(jsonMissing.error).toMatch(/Human verification token missing/i);
+    expect(fetchCalls).toHaveLength(0);
+  });
 });

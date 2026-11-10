@@ -39,36 +39,61 @@ export function initQuoteForm(formEl) {
   const consentCheckbox = formEl.querySelector('#quote-consent');
 
   // Turnstile integration (client-side)
+  // Preserves existing site key: 0x4AAAAAAF6FHuSM5ZiycyyY
+  // Prefers VITE_TURNSTILE_SITE_KEY when configured, with HTML data-sitekey fallback
   // In test environments (Vitest), site key requires explicit opt-in via dataset.sitekey so unit tests without DOM/turnstile are unaffected
+  const DEFAULT_TURNSTILE_SITE_KEY = '0x4AAAAAAF6FHuSM5ZiycyyY';
   const turnstileSiteKey =
     formEl?.dataset?.sitekey?.trim() ||
     (import.meta.env?.MODE === 'test'
       ? ''
       : (typeof import.meta.env?.VITE_TURNSTILE_SITE_KEY === 'string' && import.meta.env.VITE_TURNSTILE_SITE_KEY.trim()) ||
-        '0x4AAAAAAF6FHuSM5ZiycyyY');
+        DEFAULT_TURNSTILE_SITE_KEY);
   let turnstileToken = null;
   let turnstileWidgetId = null;
+  let isRenderingTurnstile = false;
 
   function renderTurnstileWidget() {
-    if (typeof window === 'undefined' || !window.turnstile || !turnstileSiteKey || turnstileWidgetId !== null) return;
+    if (typeof window === 'undefined' || !window.turnstile || !turnstileSiteKey) return;
+    if (turnstileWidgetId !== null || isRenderingTurnstile) return;
     const widgetContainer = formEl.querySelector('#turnstile-widget');
     if (!widgetContainer) return;
-    try {
-      turnstileWidgetId = window.turnstile.render(widgetContainer, {
-        sitekey: turnstileSiteKey,
-        callback: (token) => {
-          turnstileToken = token;
-          if (statusEl?.dataset.state === 'error') clearStatus();
-        },
-        'error-callback': () => {
-          turnstileToken = null;
-        },
-        'expired-callback': () => {
-          turnstileToken = null;
-        },
-      });
-    } catch {
-      // Ignore widget render errors
+
+    const executeRender = () => {
+      if (turnstileWidgetId !== null) return;
+      try {
+        isRenderingTurnstile = true;
+        turnstileWidgetId = window.turnstile.render(widgetContainer, {
+          sitekey: turnstileSiteKey,
+          callback: (token) => {
+            turnstileToken = token;
+            if (statusEl?.dataset.state === 'error') clearStatus();
+          },
+          'error-callback': (code) => {
+            turnstileToken = null;
+            console.warn('[turnstile] Human verification error encountered:', code || 'unspecified');
+          },
+          'expired-callback': () => {
+            turnstileToken = null;
+            setStatus('error', 'Human verification challenge expired. Please re-verify before submitting.');
+            resetTurnstileWidget();
+          },
+          'timeout-callback': () => {
+            turnstileToken = null;
+            console.warn('[turnstile] Human verification challenge timed out.');
+          },
+        });
+      } catch (err) {
+        console.warn('[turnstile] Failed to render Turnstile widget:', err?.message || 'render exception');
+      } finally {
+        isRenderingTurnstile = false;
+      }
+    };
+
+    if (typeof window.turnstile.ready === 'function') {
+      window.turnstile.ready(executeRender);
+    } else {
+      executeRender();
     }
   }
 
@@ -81,8 +106,8 @@ export function initQuoteForm(formEl) {
         } else {
           window.turnstile.reset();
         }
-      } catch {
-        // Ignore widget reset errors
+      } catch (err) {
+        console.warn('[turnstile] Failed to reset Turnstile widget:', err?.message || 'reset exception');
       }
     }
   }
@@ -95,17 +120,35 @@ export function initQuoteForm(formEl) {
       turnstileDiv.className = 'form__turnstile';
       submitBtn?.parentNode?.insertBefore(turnstileDiv, submitBtn);
     }
-    if (typeof document !== 'undefined' && !window.__turnstileScriptLoaded) {
+
+    const SCRIPT_URL = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    const existingScript = typeof document !== 'undefined'
+      ? document.querySelector(`script[src="${SCRIPT_URL}"]`)
+      : null;
+
+    if (window.turnstile) {
+      renderTurnstileWidget();
+    } else if (existingScript) {
+      existingScript.addEventListener('load', () => {
+        renderTurnstileWidget();
+      });
+      existingScript.addEventListener('error', () => {
+        console.warn('[turnstile] Script failed to load from challenges.cloudflare.com.');
+        setStatus('error', 'Human verification challenge could not be loaded. Please refresh or check connection.');
+      });
+    } else if (typeof document !== 'undefined') {
       const script = document.createElement('script');
-      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+      script.src = SCRIPT_URL;
       script.async = true;
       script.onload = () => {
         window.__turnstileScriptLoaded = true;
         renderTurnstileWidget();
       };
+      script.onerror = () => {
+        console.warn('[turnstile] Script failed to load from challenges.cloudflare.com.');
+        setStatus('error', 'Human verification challenge could not be loaded. Please refresh or check connection.');
+      };
       document.head.appendChild(script);
-    } else if (window.turnstile) {
-      renderTurnstileWidget();
     }
   }
 
@@ -213,8 +256,9 @@ export function initQuoteForm(formEl) {
           error: json?.error || 'Unable to submit quote request. Please call +91 79775 91792 or use WhatsApp.',
         };
       }
-    } catch {
+    } catch (err) {
       // Endpoint unreachable or running on static local Vite server without Pages Functions
+      console.warn('[quote-form] Quote endpoint submission network issue:', err?.message || 'unreachable');
     }
 
     // 2. Controlled local E2E test harness fallback ONLY when explicitly enabled on localhost/127.0.0.1
